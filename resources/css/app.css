@@ -1,0 +1,362 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-bg text-ink font-sans;
+}
+
+.card {
+  @apply bg-surface border border-line rounded-xl shadow-sm;
+}
+
+.btn {
+  @apply inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition active:scale-[0.97];
+}
+.btn-primary {
+  @apply bg-brand text-white hover:opacity-90;
+}
+.btn-ghost {
+  @apply bg-surface border border-line text-ink hover:bg-surfacealt;
+}
+.btn-teal {
+  @apply bg-teal text-white hover:opacity-90;
+}
+.btn-coral {
+  @apply bg-coral text-white hover:opacity-90;
+}
+.btn-sm {
+  @apply px-2.5 py-1.5 text-xs;
+}
+
+/* Interaksi konsisten di seluruh tombol desktop dan ponsel. */
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  .btn,
+  .nav-menu-item {
+    transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease,
+      border-color 160ms ease, color 160ms ease, opacity 160ms ease;
+  }
+
+  button:not(:disabled):hover,
+  .btn:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 12px rgba(14, 74, 44, 0.12);
+  }
+
+  button:not(:disabled):active,
+  .btn:not(:disabled):active {
+    transform: translateY(0) scale(0.96);
+    box-shadow: none;
+  }
+
+  .nav-menu-item:hover {
+    transform: translateX(4px);
+  }
+
+  .nav-menu-item:active {
+    transform: translateX(2px) scale(0.98);
+  }
+}
+
+button:not(:disabled),
+.btn:not(:disabled),
+.nav-menu-item {
+  cursor: pointer;
+}
+
+button:disabled,
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+button:focus-visible,
+.btn:focus-visible,
+.nav-menu-item:focus-visible {
+  outline: 3px solid rgba(46, 158, 110, 0.45);
+  outline-offset: 2px;
+}
+
+/* Tombol menu khusus ponsel: ikon hamburger berubah menjadi tanda tutup. */
+.mobile-menu-button {
+  position: relative;
+  display: inline-flex;
+  height: 44px;
+  width: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #BFE3CD;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #EAF9EF, #D6F0E0);
+  box-shadow: 0 4px 10px rgba(14, 74, 44, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.mobile-menu-button::before {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.9), transparent 38%);
+  pointer-events: none;
+}
+
+.mobile-menu-icon {
+  position: relative;
+  display: flex;
+  height: 18px;
+  width: 20px;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.mobile-menu-icon span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  border-radius: 99px;
+  background: #0E4A2C;
+  box-shadow: 0 1px 1px rgba(14, 74, 44, 0.12);
+  transition: transform 180ms ease, opacity 150ms ease, width 180ms ease;
+}
+
+.mobile-menu-icon span:nth-child(2) {
+  width: 78%;
+  align-self: flex-end;
+}
+
+.mobile-menu-icon.is-open span:nth-child(1) {
+  transform: translateY(8px) rotate(45deg);
+}
+
+.mobile-menu-icon.is-open span:nth-child(2) {
+  width: 0;
+  opacity: 0;
+}
+
+.mobile-menu-icon.is-open span:nth-child(3) {
+  transform: translateY(-8px) rotate(-45deg);
+}
+
+/* Notifikasi masuk/keluar dengan arah yang nyaman untuk desktop dan ponsel. */
+.notification-toast-card {
+  transform-origin: top right;
+}
+
+/* Dialog konfirmasi: latar memudar, kartu muncul dengan efek pop yang lembut. */
+.confirm-dialog-card {
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .confirm-dialog-enter-active {
+    transition: opacity 190ms ease-out;
+  }
+
+  .confirm-dialog-leave-active {
+    transition: opacity 160ms ease-in;
+  }
+
+  .confirm-dialog-enter-from,
+  .confirm-dialog-leave-to {
+    opacity: 0;
+  }
+
+  .confirm-dialog-enter-active .confirm-dialog-card {
+    animation: confirm-dialog-pop-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .confirm-dialog-leave-active .confirm-dialog-card {
+    transition: transform 160ms ease-in, opacity 150ms ease-in;
+  }
+
+  .confirm-dialog-leave-to .confirm-dialog-card {
+    transform: translateY(10px) scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes confirm-dialog-pop-in {
+  from {
+    transform: translateY(18px) scale(0.93);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(-2px) scale(1.01);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .confirm-dialog-enter-active .confirm-dialog-card {
+    animation-name: confirm-dialog-mobile-in;
+  }
+
+  .confirm-dialog-leave-to .confirm-dialog-card {
+    transform: translateY(20px) scale(0.97);
+  }
+}
+
+@keyframes confirm-dialog-mobile-in {
+  from {
+    transform: translateY(30px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Semua modal formulir dan foto: backdrop memudar, kartu masuk/keluar halus. */
+.app-modal-card {
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .app-modal-enter-active {
+    transition: opacity 180ms ease-out;
+  }
+
+  .app-modal-leave-active {
+    transition: opacity 150ms ease-in;
+  }
+
+  .app-modal-enter-from,
+  .app-modal-leave-to {
+    opacity: 0;
+  }
+
+  .app-modal-enter-active .app-modal-card {
+    animation: app-modal-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .app-modal-leave-active .app-modal-card {
+    transition: transform 150ms ease-in, opacity 140ms ease-in;
+  }
+
+  .app-modal-leave-to .app-modal-card {
+    transform: translateY(12px) scale(0.96);
+    opacity: 0;
+  }
+}
+
+@keyframes app-modal-in {
+  from {
+    transform: translateY(20px) scale(0.94);
+    opacity: 0;
+  }
+  75% {
+    transform: translateY(-1px) scale(1.01);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .app-modal-enter-active .app-modal-card {
+    animation-name: app-modal-mobile-in;
+  }
+
+  .app-modal-leave-to .app-modal-card {
+    transform: translateY(24px) scale(0.97);
+  }
+}
+
+@keyframes app-modal-mobile-in {
+  from {
+    transform: translateY(34px) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .notification-toast-enter-active {
+    transition: opacity 220ms ease-out, transform 300ms cubic-bezier(0.16, 1, 0.3, 1), filter 220ms ease-out;
+  }
+
+  .notification-toast-leave-active {
+    transition: opacity 170ms ease-in, transform 190ms ease-in, filter 170ms ease-in;
+  }
+
+  .notification-toast-enter-from {
+    transform: translateX(34px) scale(0.94);
+    filter: blur(2px);
+    opacity: 0;
+  }
+
+  .notification-toast-enter-to,
+  .notification-toast-leave-from {
+    transform: translateX(0) scale(1);
+    filter: blur(0);
+    opacity: 1;
+  }
+
+  .notification-toast-leave-to {
+    transform: translateX(24px) scale(0.96);
+    filter: blur(1px);
+    opacity: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .notification-toast-card {
+    top: max(0.75rem, env(safe-area-inset-top));
+    right: 0.75rem;
+    width: calc(100vw - 1.5rem);
+    transform-origin: top center;
+  }
+}
+
+@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .notification-toast-enter-from {
+    transform: translateY(-24px) scale(0.95);
+  }
+
+  .notification-toast-enter-to,
+  .notification-toast-leave-from {
+    transform: translateY(0) scale(1);
+  }
+
+  .notification-toast-leave-to {
+    transform: translateY(-14px) scale(0.97);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-menu-button:hover {
+    transform: translateY(-2px) rotate(-2deg);
+    border-color: #6FCEA0;
+    box-shadow: 0 8px 16px rgba(14, 74, 44, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  .mobile-menu-button:active {
+    transform: translateY(0) scale(0.92);
+  }
+}
+
+.field label {
+  @apply block text-xs font-semibold text-inkmuted mb-1;
+}
+.field input, .field select, .field textarea {
+  @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm;
+}
+
+.tag {
+  @apply px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-block;
+}
+.tag-pending { @apply bg-[#EFE3C4] text-amberink; }
+.tag-approved { @apply bg-[#D6ECE6] text-tealink; }
+.tag-rejected { @apply bg-[#F6D9D3] text-coralink; }
