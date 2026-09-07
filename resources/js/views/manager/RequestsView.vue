@@ -12,7 +12,7 @@
         <div v-for="l in pendingLeaves" :key="l.id" class="flex justify-between items-start py-2.5 border-b border-line">
           <div>
             <strong>{{ l.user.name }}</strong>
-            <div class="font-mono text-inkmuted text-xs">{{ l.start_date }} s/d {{ l.end_date }}</div>
+            <div class="font-mono text-inkmuted text-xs">{{ formatDateRange(l.start_date, l.end_date) }}</div>
             <div class="text-inkmuted text-xs mt-0.5">"{{ l.reason }}"</div>
           </div>
           <div class="flex gap-1.5 shrink-0">
@@ -23,7 +23,7 @@
 
         <div v-if="decidedLeaves.length" class="text-[11px] uppercase font-bold text-inkfaint mt-4 mb-1">Riwayat</div>
         <div v-for="l in decidedLeaves" :key="l.id" class="flex justify-between items-center py-2 border-b border-line last:border-0 text-sm">
-          <div>{{ l.user.name }} · {{ l.start_date }}–{{ l.end_date }}</div>
+          <div>{{ l.user.name }} · {{ formatDateRange(l.start_date, l.end_date) }}</div>
           <span class="tag" :class="l.status === 'approved' ? 'tag-approved' : 'tag-rejected'">{{ l.status === 'approved' ? 'Disetujui' : 'Ditolak' }}</span>
         </div>
       </div>
@@ -34,7 +34,7 @@
         <div v-for="s in pendingSwaps" :key="s.id" class="flex justify-between items-start py-2.5 border-b border-line text-sm">
           <div>
             <strong>{{ s.from_user.name }}</strong> → <strong>{{ s.to_user.name }}</strong>
-            <div class="font-mono text-inkmuted text-xs">{{ s.date }} · {{ s.shift_template.name }}</div>
+            <div class="font-mono text-inkmuted text-xs">{{ formatDate(s.date) }} · {{ s.shift_template.name }}</div>
             <div class="text-inkmuted text-xs">Sudah disetujui rekan kerja, menunggu Anda.</div>
           </div>
           <div class="flex gap-1.5 shrink-0">
@@ -45,7 +45,7 @@
 
         <div v-if="otherSwaps.length" class="text-[11px] uppercase font-bold text-inkfaint mt-4 mb-1">Riwayat</div>
         <div v-for="s in otherSwaps" :key="s.id" class="flex justify-between items-center py-2 border-b border-line last:border-0 text-sm">
-          <div>{{ s.from_user.name }} → {{ s.to_user.name }} · {{ s.date }}</div>
+          <div>{{ s.from_user.name }} → {{ s.to_user.name }} · {{ formatDate(s.date) }}</div>
           <span class="tag" :class="swapTagClass(s.status)">{{ swapLabel(s.status) }}</span>
         </div>
       </div>
@@ -56,6 +56,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import api from '../../lib/api';
+import { formatDate, formatDateRange } from '../../lib/date';
 
 const leaves = ref([]);
 const swaps = ref([]);

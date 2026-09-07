@@ -11,3 +11,28 @@ export function localDateISO(date) {
 
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Format string tanggal YYYY-MM-DD menjadi format Hari-Bulan-Tahun (DD-MM-YYYY).
+ */
+export function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const clean = String(dateStr).split('T')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${d}-${m}-${y}`;
+  }
+  return dateStr;
+}
+
+/**
+ * Format rentang tanggal cuti menjadi format Hari-Bulan-Tahun (contoh: 07-09-2026 s/d 10-09-2026).
+ */
+export function formatDateRange(start, end) {
+  if (!start && !end) return '—';
+  const s = formatDate(start);
+  const e = formatDate(end);
+  if (!end || s === e) return s;
+  return `${s} s/d ${e}`;
+}

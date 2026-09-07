@@ -11,7 +11,7 @@
       <div class="text-[11px] uppercase font-bold text-inkfaint mt-5 mb-1">Status Cuti Saya</div>
       <div v-if="myLeaves.length === 0" class="text-inkfaint text-center py-4">Belum ada pengajuan cuti.</div>
       <div v-for="l in myLeaves" :key="l.id" class="flex justify-between items-center py-2 border-b border-line last:border-0 text-sm">
-        <div>{{ l.start_date }} – {{ l.end_date }}</div>
+        <div>{{ formatDateRange(l.start_date, l.end_date) }}</div>
         <span class="tag" :class="l.status === 'approved' ? 'tag-approved' : l.status === 'rejected' ? 'tag-rejected' : 'tag-pending'">
           {{ l.status === 'approved' ? 'Disetujui' : l.status === 'rejected' ? 'Ditolak' : 'Menunggu' }}
         </span>
@@ -44,7 +44,7 @@
       <div v-for="s in mySwaps" :key="s.id" class="flex justify-between items-start py-2 border-b border-line last:border-0 text-sm">
         <div>
           {{ s.from_user.name }} → {{ s.to_user.name }}
-          <div class="font-mono text-inkmuted text-xs">{{ s.date }} · {{ s.shift_template.name }}</div>
+          <div class="font-mono text-inkmuted text-xs">{{ formatDate(s.date) }} · {{ s.shift_template.name }}</div>
         </div>
         <div v-if="s.to_user_id === me.id && s.status === 'pending_peer'" class="flex gap-1.5 shrink-0">
           <button class="btn btn-teal btn-sm" @click="peerRespond(s, true)">Terima</button>
@@ -60,7 +60,7 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../../lib/api';
 import { useAuthStore } from '../../stores/auth';
-import { localDateISO } from '../../lib/date';
+import { localDateISO, formatDate, formatDateRange } from '../../lib/date';
 
 const auth = useAuthStore();
 const me = auth.user;
