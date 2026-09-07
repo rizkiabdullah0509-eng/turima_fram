@@ -342,7 +342,7 @@ class TaskExportService
             .'<dimension ref="A1:I'.$lastRow.'"/><sheetViews><sheetView workbookViewId="0">'
             .'<pane ySplit="2" topLeftCell="A3" activePane="bottomLeft" state="frozen"/>'
             .'</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>'
-            .'<cols><col min="1" max="1" width="7" customWidth="1"/>'
+            .'<cols><col min="1" max="1" width="8" customWidth="1"/>'
             .'<col min="2" max="2" width="24" customWidth="1"/>'
             .'<col min="3" max="3" width="18" customWidth="1"/>'
             .'<col min="4" max="4" width="13" customWidth="1"/>'
@@ -351,7 +351,8 @@ class TaskExportService
             .'<col min="7" max="7" width="20" customWidth="1"/>'
             .'<col min="8" max="9" width="15" customWidth="1"/></cols><sheetData>';
 
-        $xml .= self::sheetRow(1, ['Jadwal & Absensi - Minggu '.$weekStart], 2, 26);
+        // Baris 1: Kolom A-B (space kosong untuk logo perusahaan), Kolom C-I (Judul "Absensi Turima Fram" di tengah)
+        $xml .= self::sheetRow(1, ['', '', 'Absensi Turima Fram'], 2, 48);
         $xml .= self::sheetRow(2, $headings, 1, 22);
 
         foreach ($rows as $index => $row) {
@@ -361,8 +362,10 @@ class TaskExportService
             ], 3);
         }
 
-        return $xml.'</sheetData><autoFilter ref="A2:I'.$lastRow.'"/><mergeCells count="1">'
-            .'<mergeCell ref="A1:I1"/></mergeCells></worksheet>';
+        return $xml.'</sheetData><autoFilter ref="A2:I'.$lastRow.'"/><mergeCells count="2">'
+            .'<mergeCell ref="A1:B1"/>'
+            .'<mergeCell ref="C1:I1"/>'
+            .'</mergeCells></worksheet>';
     }
 
 
@@ -389,7 +392,7 @@ class TaskExportService
             .'<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
             .'<fonts count="3"><font><sz val="10"/><name val="Arial"/></font>'
             .'<font><b/><sz val="10"/><name val="Arial"/><color rgb="FFFFFFFF"/></font>'
-            .'<font><b/><sz val="14"/><name val="Arial"/><color rgb="FF125B3A"/></font></fonts>'
+            .'<font><b/><sz val="15"/><name val="Arial"/><color rgb="FF125B3A"/></font></fonts>'
             .'<fills count="3"><fill><patternFill patternType="none"/></fill>'
             .'<fill><patternFill patternType="gray125"/></fill>'
             .'<fill><patternFill patternType="solid"><fgColor rgb="FF125B3A"/><bgColor indexed="64"/></patternFill></fill></fills>'
@@ -401,7 +404,7 @@ class TaskExportService
             .'<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
             .'<alignment horizontal="center" vertical="center" wrapText="1"/></xf>'
             .'<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1">'
-            .'<alignment vertical="center"/></xf>'
+            .'<alignment horizontal="center" vertical="center"/></xf>'
             .'<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">'
             .'<alignment vertical="center" wrapText="1"/></xf></cellXfs>'
             .'</styleSheet>';
