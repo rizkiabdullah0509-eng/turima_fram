@@ -179,8 +179,10 @@ class ScheduleController extends Controller
                     $leave = $leaves->first(fn ($l) => $l->user_id === $emp->id && $date >= $l->start_date->toDateString() && $date <= $l->end_date->toDateString());
                     $schedule = $schedules->first(fn ($s) => $s->user_id === $emp->id && $s->date->toDateString() === $date);
 
+                    $dateFormatted = $weekStart->copy()->addDays($i)->format('d-m-Y');
+
                     if ($leave) {
-                        fputcsv($out, [$emp->name, $emp->position, $dayNames[$i], $date, $schedule?->shiftTemplate?->name ?? '-', 'Cuti']);
+                        fputcsv($out, [$emp->name, $emp->position, $dayNames[$i], $dateFormatted, $schedule?->shiftTemplate?->name ?? '-', 'Cuti']);
                     } elseif ($schedule) {
                         $att = $attendances->first(fn ($a) => $a->user_id === $emp->id && $a->date->toDateString() === $date);
                         if ($date > $today) {
@@ -190,7 +192,7 @@ class ScheduleController extends Controller
                         } else {
                             $status = 'Tidak Hadir';
                         }
-                        fputcsv($out, [$emp->name, $emp->position, $dayNames[$i], $date, $schedule->shiftTemplate->name, $status]);
+                        fputcsv($out, [$emp->name, $emp->position, $dayNames[$i], $dateFormatted, $schedule->shiftTemplate->name, $status]);
                     }
                 }
             }
@@ -247,7 +249,7 @@ class ScheduleController extends Controller
                     'employee' => $employee->name,
                     'position' => $employee->position ?: '-',
                     'day' => $dayNames[$i],
-                    'date' => $date,
+                    'date' => $weekStart->copy()->addDays($i)->format('d-m-Y'),
                     'shift' => $schedule?->shiftTemplate?->name ?? '-',
                     'attendance_status' => $status,
                     'clock_in' => $attendance?->clock_in?->format('H:i') ?? '-',

@@ -102,7 +102,7 @@
       <div v-if="assignModal" class="fixed inset-0 bg-black/45 flex items-center justify-center z-[100] p-5" @click.self="assignModal = null">
         <div class="app-modal-card bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
           <h3 class="font-display font-bold text-base">{{ assignModal.emp.name }}</h3>
-          <p class="text-inkmuted text-xs mb-4">{{ assignModal.date }} · Pilih shift atau kosongkan slot.</p>
+          <p class="text-inkmuted text-xs mb-4">{{ formatDate(assignModal.date) }} · Pilih shift atau kosongkan slot.</p>
           <div class="flex flex-col gap-2">
             <button v-for="s in shiftTemplates" :key="s.id"
                     class="flex justify-between items-center px-3 py-2.5 rounded-lg border border-line hover:border-ink text-sm font-semibold"
@@ -128,7 +128,7 @@
           <div class="flex items-center justify-between mb-2">
             <div>
               <h3 class="font-display font-bold text-base text-ink">Bukti Absen {{ attendancePhotoModal.label }}</h3>
-              <p class="text-inkmuted text-xs">{{ attendancePhotoModal.employee }} · {{ attendancePhotoModal.date }} <span v-if="attendancePhotoModal.time">· {{ attendancePhotoModal.time }}</span></p>
+              <p class="text-inkmuted text-xs">{{ attendancePhotoModal.employee }} · {{ formatDate(attendancePhotoModal.date) }} <span v-if="attendancePhotoModal.time">· {{ attendancePhotoModal.time }}</span></p>
             </div>
             <button type="button" class="text-inkfaint hover:text-ink text-base leading-none p-1 rounded-md transition" @click="attendancePhotoModal = null" aria-label="Tutup">
               ✕
@@ -218,7 +218,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import api from '../../lib/api';
-import { localDateISO } from '../../lib/date';
+import { localDateISO, formatDate } from '../../lib/date';
 
 const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 const monthShort = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
@@ -252,7 +252,7 @@ const days = computed(() => {
 const weekLabel = computed(() => {
   if (!days.value.length) return '';
   const a = days.value[0], b = days.value[6];
-  return `${a.getDate()} – ${b.getDate()} ${monthShort[b.getMonth()]} ${b.getFullYear()}`;
+  return `${formatDay(a)} – ${formatDay(b)}`;
 });
 
 const attendanceSummary = computed(() => {
@@ -273,7 +273,12 @@ const lastUpdatedLabel = computed(() => lastUpdated.value
   ? lastUpdated.value.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   : '—');
 
-function formatDay(d) { return `${d.getDate()} ${monthShort[d.getMonth()]}`; }
+function formatDay(d) {
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
 
 async function load({ silent = false } = {}) {
   if (!silent) {

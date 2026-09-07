@@ -65,7 +65,7 @@
 
     <div class="card p-4">
       <div class="flex justify-between items-center gap-3 mb-3 flex-wrap">
-        <div class="font-display font-bold text-base">Daftar Tugas — {{ date }}</div>
+        <div class="font-display font-bold text-base">Daftar Tugas — {{ formatDate(date) }}</div>
         <div class="flex gap-2">
           <button class="btn btn-ghost btn-sm" @click="exportTasks('excel')">⬇ Ekspor Excel</button>
           <button class="btn btn-ghost btn-sm" @click="exportTasks('pdf')">⬇ Ekspor PDF</button>
@@ -113,7 +113,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import api from '../../lib/api';
-import { localDateISO } from '../../lib/date';
+import { localDateISO, formatDate } from '../../lib/date';
 import { useAuthStore } from '../../stores/auth';
 import ConfirmDialog from '../../components/ConfirmDialog.vue';
 
@@ -142,7 +142,7 @@ const isManager = computed(() => auth.role === 'manager');
 const dayLabel = computed(() => {
   const d = new Date(date.value);
   const names = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-  return `${names[d.getDay()]}, ${date.value}`;
+  return `${names[d.getDay()]}, ${formatDate(date.value)}`;
 });
 
 async function loadAll() {

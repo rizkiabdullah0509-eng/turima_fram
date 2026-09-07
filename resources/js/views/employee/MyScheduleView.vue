@@ -274,10 +274,15 @@ const days = computed(() => {
 const weekLabel = computed(() => {
   if (!days.value.length) return '';
   const a = days.value[0], b = days.value[6];
-  return `${a.getDate()} – ${b.getDate()} ${monthShort[b.getMonth()]} ${b.getFullYear()}`;
+  return `${formatDay(a)} – ${formatDay(b)}`;
 });
 const today = computed(() => data.value?.today || iso(new Date()));
-function formatDay(d) { return `${d.getDate()} ${monthShort[d.getMonth()]}`; }
+function formatDay(d) {
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
 function formatTime(dt) { return dt ? new Date(dt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '—'; }
 
 async function load({ silent = false } = {}) {
@@ -336,7 +341,7 @@ function openAttendancePhoto(photoData, label, date) {
   viewPhotoModal.value = {
     url: isObj ? photoData.url : photoData,
     label,
-    date: `${formatDay(date)} ${new Date(date).getFullYear()}`,
+    date: formatDay(date),
     time: isObj ? photoData.time : null,
     lat: isObj ? photoData.lat : null,
     lng: isObj ? photoData.lng : null,

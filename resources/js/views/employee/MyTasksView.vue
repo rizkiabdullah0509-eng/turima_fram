@@ -2,13 +2,13 @@
   <div>
     <div class="flex items-center gap-2 mb-4 flex-wrap">
       <button class="btn btn-ghost btn-sm" @click="shiftDay(-1)">← Sebelumnya</button>
-      <div class="font-mono font-semibold text-sm bg-surfacealt px-3 py-1.5 rounded-lg">{{ date }}</div>
+      <div class="font-mono font-semibold text-sm bg-surfacealt px-3 py-1.5 rounded-lg">{{ formatDate(date) }}</div>
       <button class="btn btn-ghost btn-sm" @click="shiftDay(1)">Selanjutnya →</button>
       <button class="btn btn-ghost btn-sm" @click="goToday">Hari ini</button>
     </div>
 
     <div class="card p-4">
-      <div class="font-display font-bold text-base mb-1">Tugas Saya — {{ date }}</div>
+      <div class="font-display font-bold text-base mb-1">Tugas Saya — {{ formatDate(date) }}</div>
       <p class="text-inkmuted text-xs mb-3">Anda bebas memilih tugas mana pun untuk diselesaikan. Setiap tugas tetap memerlukan foto bukti.</p>
 
       <div v-if="tasks.length === 0" class="text-inkfaint text-center py-8">Tidak ada tugas untuk tanggal ini.</div>
@@ -62,7 +62,7 @@
 import { ref, onMounted, watch } from 'vue';
 import api from '../../lib/api';
 import PhotoUploadModal from '../../components/PhotoUploadModal.vue';
-import { localDateISO } from '../../lib/date';
+import { localDateISO, formatDate } from '../../lib/date';
 
 function iso(d) { return localDateISO(d); }
 function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }

@@ -167,7 +167,7 @@ class TaskExportService
     private static function date(mixed $value): string
     {
         if ($value instanceof DateTimeInterface) {
-            return $value->format('Y-m-d');
+            return $value->format('d-m-Y');
         }
 
         if (! $value) {
@@ -176,7 +176,7 @@ class TaskExportService
 
         $timestamp = strtotime((string) $value);
 
-        return $timestamp === false ? (string) $value : date('Y-m-d', $timestamp);
+        return $timestamp === false ? (string) $value : date('d-m-Y', $timestamp);
     }
 
     /**
@@ -247,7 +247,7 @@ class TaskExportService
             .'<col min="9" max="9" width="15" customWidth="1"/>'
             .'<col min="10" max="10" width="20" customWidth="1"/></cols><sheetData>';
 
-        $xml .= self::sheetRow(1, ['Daftar Tugas - '.$date], 2, 26);
+        $xml .= self::sheetRow(1, ['Daftar Tugas - '.self::date($date)], 2, 26);
         $xml .= self::sheetRow(2, $headings, 1, 22);
 
         foreach ($rows as $index => $row) {
