@@ -502,36 +502,16 @@ class WhatsAppBotService
 
     /**
      * Cari user berdasarkan nomor WhatsApp atau raw identifier (LID).
+     * Jika nomor digunakan bersama (misal saat pengujian oleh admin/karyawan),
+     * prioritaskan user yang memiliki hak akses kelola tim.
      */
     protected function findUserByPhone(string $phone, ?string $rawIdentifier = null): ?User
     {
         $normalized = User::normalizePhoneNumber($phone);
+        $cleanRaw = $rawIdentifier ? WahaService::extractPhoneNumber($rawIdentifier) : null;
 
-        // 1. Cari langsung berdasarkan nomor yang sudah dinormalisasi
-        $user = User::where('phone', $normalized)->first();
-        if ($user) {
-            return $user;
-        }
-
-        // 2. Cari dengan raw phone
-        $user = User::where('phone', $phone)->first();
-        if ($user) {
-            return $user;
-        }
-
-        // 3. Jika ada rawIdentifier (misal nomor LID atau chatId), cek jika tersimpan di kolom phone
-        if ($rawIdentifier) {
-            $cleanRaw = WahaService::extractPhoneNumber($rawIdentifier);
-            if (!empty($cleanRaw)) {
-                $user = User::where('phone', $cleanRaw)->first();
-                if ($user) {
-                    return $user;
-                }
-            }
-        }
-
-        // 4. Fallback pencarian fleksibel
-        return User::all()->first(function (User $u) use ($phone, $normalized, $rawIdentifier) {
+        // Ambil semua pengguna yang cocok dengan nomor telepon ini
+        $candidates = User::all()->filter(function (User $u) use ($phone, $normalized, $cleanRaw) {
             if (! $u->phone) {
                 return false;
             }
@@ -539,13 +519,22 @@ class WhatsAppBotService
             if ($uNorm === $normalized || $u->phone === $phone) {
                 return true;
             }
-            if ($rawIdentifier) {
-                $cleanRaw = WahaService::extractPhoneNumber($rawIdentifier);
-                if ($u->phone === $cleanRaw) {
-                    return true;
-                }
+            if ($cleanRaw && $u->phone === $cleanRaw) {
+                return true;
             }
             return false;
         });
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        // Prioritaskan user yang memiliki izin kelola tim (canManageTeamSchedule)
+        $authorized = $candidates->first(fn (User $u) => $u->canManageTeamSchedule());
+        if ($authorized) {
+            return $authorized;
+        }
+
+        return $candidates->first();
     }
 }
