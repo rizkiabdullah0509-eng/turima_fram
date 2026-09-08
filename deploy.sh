@@ -127,6 +127,7 @@ WAHA_URL=http://127.0.0.1:3005
 WAHA_API_KEY=turima-secret-key-2026
 WAHA_SESSION=default
 WAHA_TIMEOUT_MINUTES=15
+WAHA_WEBHOOK_URL=http://host.docker.internal/api/whatsapp/webhook
 ENVEOF
 
 # Ganti password di .env jika berbeda
@@ -175,7 +176,7 @@ server {
 
     # WAHA Dashboard & API Proxy (/waha/)
     location /waha/ {
-        proxy_pass http://127.0.0.1:3000/;
+        proxy_pass http://127.0.0.1:3005/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
