@@ -1,7 +1,6 @@
 @echo off
-title Turima Fram - Laravel Server (Multi-Worker)
+title Turima Fram - Laravel Server
 echo ========================================================
-echo   Menjalankan Laravel Server Turima Fram (4 Workers)
+echo   Menjalankan Laravel Server Turima Fram
 echo ========================================================
-set PHP_CLI_SERVER_WORKERS=4
 php artisan serve --port=8000
