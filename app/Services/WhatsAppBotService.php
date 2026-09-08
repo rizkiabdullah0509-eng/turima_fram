@@ -480,11 +480,17 @@ class WhatsAppBotService
                 foreach ($chats as $chat) {
                     $chatLid = $chat['accountLid'] ?? '';
                     $pnJid = $chat['pnJid'] ?? '';
-                    if (!empty($chatLid) && str_contains($chatLid, $cleanId) && !empty($pnJid)) {
-                        $phone = WahaService::extractPhoneNumber($pnJid);
-                        Cache::forever("waha_lid_{$cleanId}", $phone);
-                        return $phone;
+                    if (!empty($chatLid) && !empty($pnJid)) {
+                        $cLid = WahaService::extractPhoneNumber($chatLid);
+                        $cPn = WahaService::extractPhoneNumber($pnJid);
+                        if (!empty($cLid) && !empty($cPn)) {
+                            Cache::forever("waha_lid_{$cLid}", $cPn);
+                        }
                     }
+                }
+                $cached = Cache::get("waha_lid_{$cleanId}");
+                if ($cached) {
+                    return $cached;
                 }
             }
         } catch (\Throwable $e) {

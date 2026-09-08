@@ -331,9 +331,15 @@ async function checkBotStatus() {
     botStatus.value = data?.waha?.status || '';
     botMe.value = data?.waha?.me || null;
 
-    if (botStatus.value === 'WORKING' && qrBlobUrl.value) {
-      URL.revokeObjectURL(qrBlobUrl.value);
-      qrBlobUrl.value = '';
+    if (botStatus.value === 'WORKING') {
+      if (qrBlobUrl.value) {
+        URL.revokeObjectURL(qrBlobUrl.value);
+        qrBlobUrl.value = '';
+      }
+      if (botPollTimer) {
+        clearInterval(botPollTimer);
+        botPollTimer = null;
+      }
     }
   } catch (e) {
     botStatus.value = 'ERROR';
@@ -341,14 +347,14 @@ async function checkBotStatus() {
 }
 
 async function fetchQrCode() {
-  if (botStatus.value === 'WORKING') return;
+  if (botStatus.value === 'WORKING' || qrLoading.value) return;
   qrLoading.value = true;
   qrError.value = false;
   try {
     const response = await api.get('/whatsapp/qr', {
       params: { t: Date.now() },
       responseType: 'blob',
-      timeout: 15000,
+      timeout: 8000,
     });
     if (qrBlobUrl.value) {
       URL.revokeObjectURL(qrBlobUrl.value);
@@ -364,10 +370,22 @@ async function fetchQrCode() {
 }
 
 async function handleRestartBot() {
+  if (loadingBotAction.value) return;
   loadingBotAction.value = true;
   try {
     await api.post('/whatsapp/restart');
     await fetchQrCode();
+    if (botPollTimer) clearInterval(botPollTimer);
+    botPollTimer = setInterval(async () => {
+      if (!showBotModal.value || botStatus.value === 'WORKING') {
+        if (botPollTimer) {
+          clearInterval(botPollTimer);
+          botPollTimer = null;
+        }
+        return;
+      }
+      await checkBotStatus();
+    }, 4000);
   } catch (e) {
     alert('Gagal merefresh QR Code bot.');
   } finally {
@@ -380,12 +398,18 @@ async function openBotModal() {
   await checkBotStatus();
   if (botStatus.value !== 'WORKING') {
     fetchQrCode();
+    if (botPollTimer) clearInterval(botPollTimer);
+    botPollTimer = setInterval(async () => {
+      if (!showBotModal.value || botStatus.value === 'WORKING') {
+        if (botPollTimer) {
+          clearInterval(botPollTimer);
+          botPollTimer = null;
+        }
+        return;
+      }
+      await checkBotStatus();
+    }, 4000);
   }
-  if (botPollTimer) clearInterval(botPollTimer);
-  botPollTimer = setInterval(async () => {
-    if (!showBotModal.value) return;
-    await checkBotStatus();
-  }, 3500);
 }
 
 function closeBotModal() {

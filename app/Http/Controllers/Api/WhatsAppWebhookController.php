@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\WahaService;
 use App\Services\WhatsAppBotService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class WhatsAppWebhookController extends Controller
@@ -27,11 +28,6 @@ class WhatsAppWebhookController extends Controller
         $event = $request->input('event');
         $payload = $request->input('payload');
 
-        Log::info('WAHA Webhook received', [
-            'event' => $event,
-            'session' => $request->input('session'),
-        ]);
-
         if ($event !== 'message' || empty($payload)) {
             return response()->json(['status' => 'ignored', 'reason' => 'Not a message event'], 200);
         }
@@ -39,6 +35,21 @@ class WhatsAppWebhookController extends Controller
         // Abaikan pesan jika dikirim oleh bot sendiri (fromMe == true)
         if (!empty($payload['fromMe'])) {
             return response()->json(['status' => 'ignored', 'reason' => 'fromMe message'], 200);
+        }
+
+        // 1. Abaikan pesan lampau/riwayat saat sinkronisasi sesi baru (lebih dari 45 detik yang lalu)
+        $timestamp = $payload['timestamp'] ?? null;
+        if (!empty($timestamp) && (time() - (int)$timestamp) > 45) {
+            return response()->json(['status' => 'ignored', 'reason' => 'Historical sync message'], 200);
+        }
+
+        // 2. Cegah pemrosesan ganda pesan yang sama (Deduplication)
+        $messageId = $payload['id'] ?? null;
+        if (!empty($messageId)) {
+            if (Cache::has("waha_msg_{$messageId}")) {
+                return response()->json(['status' => 'ignored', 'reason' => 'Duplicate message'], 200);
+            }
+            Cache::put("waha_msg_{$messageId}", true, 180);
         }
 
         $from = $payload['from'] ?? null;
@@ -91,7 +102,6 @@ class WhatsAppWebhookController extends Controller
     public function restart()
     {
         $success = $this->wahaService->restartSession();
-        usleep(600000);
         $newStatus = $this->wahaService->getSessionStatus();
 
         return response()->json([
