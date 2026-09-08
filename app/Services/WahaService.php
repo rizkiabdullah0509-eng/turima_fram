@@ -104,7 +104,7 @@ class WahaService
     }
 
     /**
-     * Restart sesi WAHA (membuat QR code baru jika status FAILED atau STOPPED).
+     * Restart sesi WAHA. Jika gagal atau status FAILED, lakukan reset penuh.
      */
     public function restartSession(): bool
     {
@@ -124,13 +124,42 @@ class WahaService
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
 
-            if ($httpCode === 404) {
-                return $this->createAndStartSession();
+            if ($httpCode >= 200 && $httpCode < 300) {
+                return true;
             }
 
-            return $httpCode >= 200 && $httpCode < 300;
+            // Jika restart gagal atau sesi 404, lakukan reset total
+            return $this->resetSessionCompletely();
         } catch (\Throwable $e) {
             Log::error('WAHA restartSession exception: ' . $e->getMessage());
+            return $this->resetSessionCompletely();
+        }
+    }
+
+    /**
+     * Hapus total sesi yang rusak/korup dan buat sesi baru dari nol.
+     */
+    public function resetSessionCompletely(): bool
+    {
+        try {
+            $chDel = curl_init("{$this->baseUrl}/api/sessions/{$this->session}");
+            curl_setopt($chDel, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($chDel, CURLOPT_CUSTOMREQUEST, 'DELETE');
+            curl_setopt($chDel, CURLOPT_TIMEOUT, 6);
+
+            $headers = [];
+            if ($this->apiKey) {
+                $headers[] = 'X-Api-Key: ' . $this->apiKey;
+            }
+            curl_setopt($chDel, CURLOPT_HTTPHEADER, $headers);
+            curl_exec($chDel);
+            curl_close($chDel);
+
+            usleep(300000); // 0.3s
+
+            return $this->createAndStartSession();
+        } catch (\Throwable $e) {
+            Log::error('WAHA resetSessionCompletely exception: ' . $e->getMessage());
             return false;
         }
     }
@@ -141,7 +170,18 @@ class WahaService
     public function createAndStartSession(): bool
     {
         try {
-            $payload = json_encode(['name' => $this->session]);
+            $payload = json_encode([
+                'name' => $this->session,
+                'start' => true,
+                'config' => [
+                    'noweb' => [
+                        'store' => [
+                            'enabled' => true,
+                        ],
+                    ],
+                ],
+            ]);
+
             $ch = curl_init("{$this->baseUrl}/api/sessions");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
@@ -152,31 +192,20 @@ class WahaService
                 $headers[] = 'X-Api-Key: ' . $this->apiKey;
             }
             curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-            curl_exec($ch);
+            $response = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
-
-            $chStart = curl_init("{$this->baseUrl}/api/sessions/{$this->session}/start");
-            curl_setopt($chStart, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($chStart, CURLOPT_POST, true);
-            curl_setopt($chStart, CURLOPT_TIMEOUT, 10);
-            $headersStart = [];
-            if ($this->apiKey) {
-                $headersStart[] = 'X-Api-Key: ' . $this->apiKey;
-            }
-            curl_setopt($chStart, CURLOPT_HTTPHEADER, $headersStart);
-            curl_exec($chStart);
-            $code = curl_getinfo($chStart, CURLINFO_HTTP_CODE);
-            curl_close($chStart);
 
             return $code >= 200 && $code < 300;
         } catch (\Throwable $e) {
+            Log::error('createAndStartSession exception: ' . $e->getMessage());
             return false;
         }
     }
 
     /**
      * Ambil raw image data PNG QR Code dari WAHA.
-     * Jika status sesi FAILED / STOPPED, otomatis restart terlebih dahulu.
+     * Secara otomatis memulihkan sesi jika status FAILED / STOPPED / STARTING.
      */
     public function getQrCodeImage(): ?string
     {
@@ -184,11 +213,32 @@ class WahaService
             $status = $this->getSessionStatus();
             $currStatus = $status['status'] ?? null;
 
-            if ($currStatus === 'FAILED' || $currStatus === 'STOPPED' || empty($currStatus)) {
-                $this->restartSession();
-                usleep(800000);
+            if ($currStatus === 'WORKING') {
+                return null;
             }
 
+            // Jika status tidak sehat, lakukan reset total untuk membersihkan token lama yang rusak
+            if ($currStatus === 'FAILED' || $currStatus === 'STOPPED' || empty($currStatus)) {
+                $this->resetSessionCompletely();
+            }
+
+            // Tunggu hingga status mencapai SCAN_QR_CODE (maksimal 5 kali percobaan)
+            for ($i = 0; $i < 6; $i++) {
+                $st = $this->getSessionStatus();
+                $sName = $st['status'] ?? null;
+
+                if ($sName === 'SCAN_QR_CODE') {
+                    break;
+                }
+
+                if ($sName === 'WORKING') {
+                    return null;
+                }
+
+                usleep(700000); // 0.7 detik
+            }
+
+            // Ambil QR Code PNG dari endpoint WAHA
             $ch = curl_init("{$this->baseUrl}/api/{$this->session}/auth/qr");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 8);
@@ -209,6 +259,7 @@ class WahaService
 
             return null;
         } catch (\Throwable $e) {
+            Log::error('getQrCodeImage exception: ' . $e->getMessage());
             return null;
         }
     }

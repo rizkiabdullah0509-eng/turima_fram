@@ -254,14 +254,31 @@ cici
           </div>
         </div>
 
-        <!-- Jika status SCAN_QR_CODE atau FAILED/STOPPED -->
+        <!-- Jika status SCAN_QR_CODE atau FAILED/STOPPED/STARTING -->
         <div v-else class="text-center my-4">
-          <div v-if="qrLoading" class="w-64 h-64 mx-auto rounded-xl bg-surfacealt border flex flex-col items-center justify-center text-xs text-inkmuted">
-            <div class="animate-spin text-2xl mb-2">⏳</div>
-            <span>Membuat QR Code baru...</span>
+          <div v-if="qrLoading" class="w-64 h-64 mx-auto rounded-xl bg-surfacealt border border-line flex flex-col items-center justify-center text-xs text-inkmuted p-4">
+            <div class="animate-spin text-3xl mb-3">⏳</div>
+            <span class="font-bold text-ink">Menyiapkan QR Code...</span>
+            <span class="text-[11px] text-inkmuted mt-1 text-center">Menghubungkan ke WAHA Turima Farm</span>
           </div>
-          <div v-else class="relative inline-block mx-auto p-2 bg-white rounded-xl border border-line shadow-sm">
-            <img :src="qrImageUrl" alt="QR Code WhatsApp" class="w-60 h-60 mx-auto rounded-lg object-contain" />
+
+          <div v-else-if="qrError" class="w-64 h-64 mx-auto rounded-xl bg-rose-50 border border-rose-200 flex flex-col items-center justify-center text-xs text-rose-700 p-4">
+            <div class="text-3xl mb-2">⚠️</div>
+            <span class="font-bold text-rose-900">QR Code Sedang Disiapkan</span>
+            <p class="text-[11px] text-rose-700 mt-1 mb-3 text-center">Sesi bot sedang di-restart untuk membersihkan status lama.</p>
+            <button class="btn btn-sm bg-rose-600 hover:bg-rose-700 text-white text-xs" @click="fetchQrCode">
+              🔄 Coba Muat Ulang
+            </button>
+          </div>
+
+          <div v-else-if="qrBlobUrl" class="relative inline-block mx-auto p-2 bg-white rounded-xl border border-line shadow-sm">
+            <img :src="qrBlobUrl" alt="QR Code WhatsApp" class="w-60 h-60 mx-auto rounded-lg object-contain" />
+          </div>
+
+          <div v-else class="w-64 h-64 mx-auto rounded-xl bg-surfacealt border border-line flex flex-col items-center justify-center text-xs text-inkmuted p-4">
+            <button class="btn btn-sm bg-primary text-white" @click="fetchQrCode">
+              📷 Tampilkan QR Code
+            </button>
           </div>
 
           <div class="mt-3 text-xs text-inkmuted leading-relaxed max-w-xs mx-auto text-left space-y-1">
@@ -272,8 +289,9 @@ cici
           </div>
 
           <div class="mt-4 flex items-center justify-center gap-2">
-            <button class="btn btn-sm bg-emerald-700 hover:bg-emerald-800 text-white text-xs flex items-center gap-1" :disabled="loadingBotAction" @click="handleRestartBot">
-              <span>🔄 Buat / Refresh QR Code Baru</span>
+            <button class="btn btn-sm bg-emerald-700 hover:bg-emerald-800 text-white text-xs flex items-center gap-1.5" :disabled="loadingBotAction || qrLoading" @click="handleRestartBot">
+              <span v-if="loadingBotAction">⏳ Sedang Me-restart...</span>
+              <span v-else>🔄 Buat / Refresh QR Code Baru</span>
             </button>
           </div>
         </div>
@@ -301,43 +319,68 @@ const showBotFormatHelp = ref(false);
 const showBotModal = ref(false);
 const botStatus = ref('');
 const botMe = ref(null);
-const qrTimestamp = ref(Date.now());
+const qrBlobUrl = ref('');
 const qrLoading = ref(false);
+const qrError = ref(false);
 const loadingBotAction = ref(false);
 let botPollTimer = null;
-
-const qrImageUrl = computed(() => `/api/whatsapp/qr?t=${qrTimestamp.value}`);
 
 async function checkBotStatus() {
   try {
     const { data } = await api.get('/whatsapp/status');
     botStatus.value = data?.waha?.status || '';
     botMe.value = data?.waha?.me || null;
+
+    if (botStatus.value === 'WORKING' && qrBlobUrl.value) {
+      URL.revokeObjectURL(qrBlobUrl.value);
+      qrBlobUrl.value = '';
+    }
   } catch (e) {
     botStatus.value = 'ERROR';
   }
 }
 
-async function handleRestartBot() {
-  loadingBotAction.value = true;
+async function fetchQrCode() {
+  if (botStatus.value === 'WORKING') return;
   qrLoading.value = true;
+  qrError.value = false;
   try {
-    await api.post('/whatsapp/restart');
-    await new Promise(r => setTimeout(r, 1000));
-    qrTimestamp.value = Date.now();
+    const response = await api.get('/whatsapp/qr', {
+      params: { t: Date.now() },
+      responseType: 'blob',
+      timeout: 15000,
+    });
+    if (qrBlobUrl.value) {
+      URL.revokeObjectURL(qrBlobUrl.value);
+    }
+    qrBlobUrl.value = URL.createObjectURL(response.data);
     await checkBotStatus();
-  } catch (e) {
-    alert('Gagal merefresh QR Code bot.');
+  } catch (err) {
+    console.error('Failed to load QR blob:', err);
+    qrError.value = true;
   } finally {
-    loadingBotAction.value = false;
     qrLoading.value = false;
   }
 }
 
-function openBotModal() {
+async function handleRestartBot() {
+  loadingBotAction.value = true;
+  try {
+    await api.post('/whatsapp/restart');
+    await fetchQrCode();
+  } catch (e) {
+    alert('Gagal merefresh QR Code bot.');
+  } finally {
+    loadingBotAction.value = false;
+  }
+}
+
+async function openBotModal() {
   showBotModal.value = true;
-  qrTimestamp.value = Date.now();
-  checkBotStatus();
+  await checkBotStatus();
+  if (botStatus.value !== 'WORKING') {
+    fetchQrCode();
+  }
   if (botPollTimer) clearInterval(botPollTimer);
   botPollTimer = setInterval(async () => {
     if (!showBotModal.value) return;
