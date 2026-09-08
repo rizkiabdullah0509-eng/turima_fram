@@ -59,7 +59,7 @@ class WhatsAppWebhookController extends Controller
         }
 
         try {
-            $this->botService->handleIncomingMessage($from, (string) $body);
+            $this->botService->handleIncomingMessage($from, (string) $body, $payload);
             return response()->json(['status' => 'success'], 200);
         } catch (\Throwable $e) {
             Log::error('Error processing WhatsApp message: ' . $e->getMessage(), [

@@ -265,11 +265,46 @@ class WahaService
     }
 
     /**
+     * Ambil daftar seluruh percakapan aktif dari WAHA untuk resolusi pemetaan LID ke nomor telepon.
+     */
+    public function getChats(): array
+    {
+        try {
+            $ch = curl_init("{$this->baseUrl}/api/{$this->session}/chats");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            $headers = [];
+            if ($this->apiKey) {
+                $headers[] = 'X-Api-Key: ' . $this->apiKey;
+            }
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            $res = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($code >= 200 && $code < 300 && !empty($res)) {
+                $data = json_decode($res, true);
+                return is_array($data) ? $data : [];
+            }
+
+            return [];
+        } catch (\Throwable $e) {
+            Log::error('WAHA getChats exception: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Format nomor WhatsApp menjadi chatId WAHA (misal: 6281234567890@c.us).
      */
     public function formatChatId(string $phoneOrChatId): string
     {
-        if (str_ends_with($phoneOrChatId, '@c.us') || str_ends_with($phoneOrChatId, '@g.us')) {
+        if (
+            str_ends_with($phoneOrChatId, '@c.us') || 
+            str_ends_with($phoneOrChatId, '@g.us') || 
+            str_ends_with($phoneOrChatId, '@lid') || 
+            str_ends_with($phoneOrChatId, '@s.whatsapp.net')
+        ) {
             return $phoneOrChatId;
         }
 

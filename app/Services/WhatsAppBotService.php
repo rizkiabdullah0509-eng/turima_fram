@@ -7,6 +7,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\WhatsAppSession;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -23,9 +24,9 @@ class WhatsAppBotService
     /**
      * Proses pesan teks yang masuk dari webhook WAHA.
      */
-    public function handleIncomingMessage(string $fromChatId, string $messageText): void
+    public function handleIncomingMessage(string $fromChatId, string $messageText, array $payload = []): void
     {
-        $phone = WahaService::extractPhoneNumber($fromChatId);
+        $phone = $this->resolvePhoneNumber($fromChatId, $payload);
         $text = trim($messageText);
 
         if ($text === '') {
@@ -33,13 +34,16 @@ class WhatsAppBotService
         }
 
         // 1. Verifikasi apakah nomor pengirim terdaftar di sistem
-        $user = $this->findUserByPhone($phone);
+        $user = $this->findUserByPhone($phone, $fromChatId);
 
         if (! $user) {
+            $cleanId = WahaService::extractPhoneNumber($fromChatId);
+            $displayId = ($phone !== $cleanId && !empty($phone)) ? "{$phone}" : $cleanId;
+
             $this->waha->sendMessage(
                 $fromChatId,
                 "⚠️ *Nomor Tidak Terdaftar*\n\n"
-                . "Nomor WhatsApp Anda ({$phone}) belum terdaftar di sistem *TURIMA FRAM*.\n\n"
+                . "Nomor WhatsApp Anda ({$displayId}) belum terdaftar di sistem *TURIMA FRAM*.\n\n"
                 . "Silakan masukkan nomor WhatsApp Anda pada pengaturan akun web atau hubungi Administrator."
             );
             return;
@@ -418,24 +422,124 @@ class WhatsAppBotService
     }
 
     /**
-     * Cari user berdasarkan nomor WhatsApp.
+     * Memetakan identifier pengirim (bisa nomor standar atau WhatsApp LID)
+     * ke nomor telepon riil yang terdaftar.
      */
-    protected function findUserByPhone(string $phone): ?User
+    public function resolvePhoneNumber(string $fromChatId, array $payload = []): string
+    {
+        // 1. Cek remoteJidAlt di dalam payload pesan webhook
+        $altCandidate = $payload['_data']['key']['remoteJidAlt']
+            ?? $payload['key']['remoteJidAlt']
+            ?? $payload['remoteJidAlt']
+            ?? $payload['_data']['participant']
+            ?? $payload['participant']
+            ?? null;
+
+        if (!empty($altCandidate) && !str_contains($altCandidate, '@lid')) {
+            $extracted = WahaService::extractPhoneNumber($altCandidate);
+            if (strlen($extracted) >= 8 && strlen($extracted) <= 16) {
+                if (str_contains($fromChatId, '@lid')) {
+                    $cleanLid = WahaService::extractPhoneNumber($fromChatId);
+                    Cache::forever("waha_lid_{$cleanLid}", $extracted);
+                }
+                return $extracted;
+            }
+        }
+
+        $cleanId = WahaService::extractPhoneNumber($fromChatId);
+
+        // 2. Jika bukan LID (nomor HP standar panjang <= 14 digit dan tanpa @lid)
+        if (!str_contains($fromChatId, '@lid') && strlen($cleanId) <= 14) {
+            return $cleanId;
+        }
+
+        // 3. Cek pemetaan LID yang sudah tersimpan di Cache
+        $cached = Cache::get("waha_lid_{$cleanId}");
+        if ($cached) {
+            return $cached;
+        }
+
+        // 4. Cek sesi WAHA jika pengirim adalah bot itu sendiri
+        try {
+            $session = $this->waha->getSessionStatus();
+            $meLid = $session['me']['lid'] ?? '';
+            $meId = $session['me']['id'] ?? '';
+            if (!empty($meLid) && str_contains($meLid, $cleanId) && !empty($meId)) {
+                $phone = WahaService::extractPhoneNumber($meId);
+                Cache::forever("waha_lid_{$cleanId}", $phone);
+                return $phone;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('WAHA resolve LID getSessionStatus error: ' . $e->getMessage());
+        }
+
+        // 5. Cek dari daftar percakapan aktif WAHA (/api/{session}/chats)
+        try {
+            $chats = $this->waha->getChats();
+            if (is_array($chats)) {
+                foreach ($chats as $chat) {
+                    $chatLid = $chat['accountLid'] ?? '';
+                    $pnJid = $chat['pnJid'] ?? '';
+                    if (!empty($chatLid) && str_contains($chatLid, $cleanId) && !empty($pnJid)) {
+                        $phone = WahaService::extractPhoneNumber($pnJid);
+                        Cache::forever("waha_lid_{$cleanId}", $phone);
+                        return $phone;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('WAHA resolve LID getChats error: ' . $e->getMessage());
+        }
+
+        return $cleanId;
+    }
+
+    /**
+     * Cari user berdasarkan nomor WhatsApp atau raw identifier (LID).
+     */
+    protected function findUserByPhone(string $phone, ?string $rawIdentifier = null): ?User
     {
         $normalized = User::normalizePhoneNumber($phone);
 
+        // 1. Cari langsung berdasarkan nomor yang sudah dinormalisasi
         $user = User::where('phone', $normalized)->first();
         if ($user) {
             return $user;
         }
 
-        // Fallback pencarian fleksibel
-        return User::all()->first(function (User $u) use ($phone, $normalized) {
+        // 2. Cari dengan raw phone
+        $user = User::where('phone', $phone)->first();
+        if ($user) {
+            return $user;
+        }
+
+        // 3. Jika ada rawIdentifier (misal nomor LID atau chatId), cek jika tersimpan di kolom phone
+        if ($rawIdentifier) {
+            $cleanRaw = WahaService::extractPhoneNumber($rawIdentifier);
+            if (!empty($cleanRaw)) {
+                $user = User::where('phone', $cleanRaw)->first();
+                if ($user) {
+                    return $user;
+                }
+            }
+        }
+
+        // 4. Fallback pencarian fleksibel
+        return User::all()->first(function (User $u) use ($phone, $normalized, $rawIdentifier) {
             if (! $u->phone) {
                 return false;
             }
             $uNorm = User::normalizePhoneNumber($u->phone);
-            return $uNorm === $normalized || $u->phone === $phone;
+            if ($uNorm === $normalized || $u->phone === $phone) {
+                return true;
+            }
+            if ($rawIdentifier) {
+                $cleanRaw = WahaService::extractPhoneNumber($rawIdentifier);
+                if ($u->phone === $cleanRaw) {
+                    return true;
+                }
+            }
+            return false;
         });
     }
 }
