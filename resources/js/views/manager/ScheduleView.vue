@@ -328,6 +328,7 @@ function scheduledHours(empId) {
     .reduce((sum, s) => sum + durationHours(s.shift_template), 0);
 }
 function durationHours(shift) {
+  if (!shift?.start_time || !shift?.end_time) return 0;
   const [sh, sm] = shift.start_time.split(':').map(Number);
   const [eh, em] = shift.end_time.split(':').map(Number);
   let mins = (eh * 60 + em) - (sh * 60 + sm);

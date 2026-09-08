@@ -347,14 +347,15 @@ async function checkBotStatus() {
 }
 
 async function fetchQrCode() {
-  if (botStatus.value === 'WORKING' || qrLoading.value) return;
+  if (botStatus.value === 'WORKING') return;
+  if (qrLoading.value) return;
   qrLoading.value = true;
   qrError.value = false;
   try {
     const response = await api.get('/whatsapp/qr', {
       params: { t: Date.now() },
       responseType: 'blob',
-      timeout: 8000,
+      timeout: 15000,
     });
     if (qrBlobUrl.value) {
       URL.revokeObjectURL(qrBlobUrl.value);
@@ -362,8 +363,10 @@ async function fetchQrCode() {
     qrBlobUrl.value = URL.createObjectURL(response.data);
     await checkBotStatus();
   } catch (err) {
-    console.error('Failed to load QR blob:', err);
-    qrError.value = true;
+    if (botStatus.value !== 'WORKING') {
+      console.warn('Failed to load QR blob:', err?.message || err);
+      qrError.value = true;
+    }
   } finally {
     qrLoading.value = false;
   }
@@ -493,10 +496,14 @@ async function submitCredentials() {
     payload.password = credentialForm.value.password;
   }
 
+  if (!editingCredentials.value?.id) return;
+
   try {
     const { data: updated } = await api.put(`/employees/${editingCredentials.value.id}`, payload);
-    const index = employees.value.findIndex(employee => employee.id === updated.id);
-    employees.value[index] = updated;
+    const index = employees.value.findIndex(employee => employee?.id === updated?.id);
+    if (index !== -1 && updated) {
+      employees.value[index] = updated;
+    }
     closeCredentialsModal();
   } catch (error) {
     alert(error.response?.data?.message || 'Gagal menyimpan akun karyawan.');

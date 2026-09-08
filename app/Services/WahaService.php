@@ -219,10 +219,10 @@ class WahaService
                 $this->resetSessionCompletely();
             }
 
-            // Ambil QR Code PNG dari endpoint WAHA dengan timeout cepat
+            // Ambil QR Code PNG dari endpoint WAHA dengan timeout wajar
             $ch = curl_init("{$this->baseUrl}/api/{$this->session}/auth/qr");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 8);
 
             $headers = [];
             if ($this->apiKey) {

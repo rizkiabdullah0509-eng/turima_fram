@@ -312,14 +312,17 @@ function shiftWeek(n) { weekStart.value = iso(addDays(new Date(weekStart.value),
 function goToday() { weekStart.value = iso(mondayOf(new Date())); }
 
 function scheduleOn(date) {
+  if (!auth.user?.id) return null;
   const d = iso(date);
   return data.value.schedules.find(s => s.date === d && s.user_id === auth.user.id);
 }
 function leaveOn(date) {
+  if (!auth.user?.id) return null;
   const d = iso(date);
   return data.value.leaves.find(l => l.user_id === auth.user.id && d >= l.start_date && d <= l.end_date);
 }
 function attOn(date) {
+  if (!auth.user?.id) return null;
   const d = iso(date);
   return data.value.attendances.find(a => a.date === d && a.user_id === auth.user.id);
 }
