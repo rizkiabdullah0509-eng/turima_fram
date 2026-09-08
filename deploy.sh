@@ -123,8 +123,8 @@ SESSION_DOMAIN=turima.my.id
 VITE_APP_NAME="TURIMA FRAM"
 
 # ---- WAHA (WhatsApp HTTP API) ----
-WAHA_URL=http://127.0.0.1:3000
-WAHA_API_KEY=
+WAHA_URL=http://127.0.0.1:3005
+WAHA_API_KEY=turima-secret-key-2026
 WAHA_SESSION=default
 WAHA_TIMEOUT_MINUTES=15
 ENVEOF
@@ -246,23 +246,16 @@ fi
 sudo mkdir -p /var/waha-data
 sudo chmod -R 777 /var/waha-data
 
-if [ "$(sudo docker ps -q -f name=waha)" ]; then
-  echo "   ✅ Kontainer WAHA sudah berjalan."
-elif [ "$(sudo docker ps -aq -f name=waha)" ]; then
-  echo "   Menyalakan kontainer WAHA..."
-  sudo docker start waha
+if [ "$(sudo docker ps -q -f name=waha-turima-fram)" ]; then
+  echo "   ✅ Kontainer waha-turima-fram sudah berjalan."
+elif [ "$(sudo docker ps -aq -f name=waha-turima-fram)" ]; then
+  echo "   Menyalakan kontainer waha-turima-fram..."
+  sudo docker start waha-turima-fram
   echo "   ✅ WAHA dinyalakan"
 else
-  echo "   Menjalankan kontainer WAHA baru..."
-  sudo docker run -d \
-    --name waha \
-    --restart always \
-    -p 3000:3000 \
-    -v /var/waha-data:/app/.sessions \
-    -e "WHATSAPP_HOOK_URL=https://turima.my.id/api/whatsapp/webhook" \
-    -e "WHATSAPP_HOOK_EVENTS=message" \
-    devlikeapro/waha
-  echo "   ✅ Kontainer WAHA berhasil diluncurkan di port 3000"
+  echo "   Menjalankan kontainer WAHA Turima Fram..."
+  sudo docker compose -f "$APP_DIR/docker-compose.waha.yml" up -d
+  echo "   ✅ Kontainer WAHA berhasil diluncurkan di port 3005"
 fi
 
 # ── SELESAI ────────────────────────────────────────────────
