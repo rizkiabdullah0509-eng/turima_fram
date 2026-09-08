@@ -84,4 +84,39 @@ class WhatsAppWebhookController extends Controller
             'session_name' => config('waha.session'),
         ]);
     }
+
+    /**
+     * Restart sesi WAHA (membuat QR baru jika sesi FAILED atau STOPPED).
+     */
+    public function restart()
+    {
+        $success = $this->wahaService->restartSession();
+        usleep(600000);
+        $newStatus = $this->wahaService->getSessionStatus();
+
+        return response()->json([
+            'success' => $success,
+            'waha' => $newStatus,
+        ]);
+    }
+
+    /**
+     * Mengambil gambar QR code live dari WAHA.
+     */
+    public function qr()
+    {
+        $imageData = $this->wahaService->getQrCodeImage();
+
+        if (! $imageData) {
+            return response()->json([
+                'status' => 'unavailable',
+                'message' => 'QR Code tidak tersedia atau sesi WhatsApp sudah terhubung.',
+            ], 404);
+        }
+
+        return response($imageData, 200, [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+        ]);
+    }
 }

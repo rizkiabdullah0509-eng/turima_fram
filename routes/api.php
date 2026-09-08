@@ -27,6 +27,9 @@ Route::post('/login', [AuthController::class, 'login']);
 // WhatsApp Bot Webhook & Status (WAHA integration)
 Route::post('/whatsapp/webhook', [WhatsAppWebhookController::class, 'handle']);
 Route::get('/whatsapp/status', [WhatsAppWebhookController::class, 'status']);
+Route::post('/whatsapp/restart', [WhatsAppWebhookController::class, 'restart']);
+Route::get('/whatsapp/qr', [WhatsAppWebhookController::class, 'qr']);
+
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

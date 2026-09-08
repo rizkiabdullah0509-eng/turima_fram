@@ -11,9 +11,16 @@
           Manajer dan staf dengan akses <b>Jadwal Tim</b> dapat langsung menugaskan tugas harian karyawan cukup via WhatsApp tanpa perlu membuka aplikasi web.
         </p>
       </div>
-      <button class="btn btn-sm bg-emerald-700 hover:bg-emerald-800 text-white font-medium shrink-0 self-start sm:self-auto" type="button" @click="showBotFormatHelp = true">
-        📖 Contoh Format Chat
-      </button>
+      <div class="flex flex-wrap gap-2 shrink-0 self-start sm:self-auto">
+        <button class="btn btn-sm bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-1.5" type="button" @click="openBotModal">
+          <span>📷 Scan QR / Status Bot</span>
+          <span v-if="botStatus === 'WORKING'" class="inline-block w-2 h-2 rounded-full bg-emerald-300"></span>
+          <span v-else-if="botStatus === 'SCAN_QR_CODE'" class="inline-block w-2 h-2 rounded-full bg-amber-300 animate-ping"></span>
+        </button>
+        <button class="btn btn-sm bg-emerald-800 hover:bg-emerald-900 text-white font-medium" type="button" @click="showBotFormatHelp = true">
+          📖 Contoh Format Chat
+        </button>
+      </div>
     </div>
 
     <div class="grid lg:grid-cols-2 gap-4 items-start">
@@ -212,6 +219,72 @@ cici
       </div>
     </div>
     </Transition>
+
+    <!-- Modal Koneksi & Scan QR WhatsApp Bot -->
+    <Transition name="app-modal" appear>
+    <div v-if="showBotModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[150] p-4" @click.self="closeBotModal">
+      <div class="app-modal-card bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h3 class="font-display font-bold text-base flex items-center gap-2">
+              <span>🤖 Sambungkan Bot WhatsApp</span>
+              <span v-if="botStatus === 'WORKING'" class="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Terhubung</span>
+              <span v-else-if="botStatus === 'SCAN_QR_CODE'" class="text-[11px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">Perlu Scan QR</span>
+              <span v-else class="text-[11px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded-full">Menyiapkan</span>
+            </h3>
+            <p class="text-inkmuted text-xs mt-0.5">Kontainer mandiri WAHA Turima Farm (Port 3005)</p>
+          </div>
+          <button class="text-inkmuted hover:text-ink text-lg leading-none" @click="closeBotModal">✕</button>
+        </div>
+
+        <!-- Jika status WORKING -->
+        <div v-if="botStatus === 'WORKING'" class="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-center my-4">
+          <div class="text-3xl mb-2">✅</div>
+          <div class="font-bold text-emerald-900 text-sm">Bot WhatsApp Telah Terhubung!</div>
+          <div class="text-xs text-emerald-700 mt-1 font-mono">
+            Nomor: {{ botMe?.id || 'Aktif' }}
+          </div>
+          <p class="text-xs text-inkmuted mt-3">
+            Manajer dapat langsung mengirimkan tugas harian via chat WhatsApp ke nomor di atas.
+          </p>
+          <div class="mt-4 pt-3 border-t border-emerald-200 flex justify-center">
+            <button class="btn btn-sm bg-white border border-rose-300 text-rose-700 hover:bg-rose-50" :disabled="loadingBotAction" @click="handleRestartBot">
+              🔄 Tautkan Ulang / Ganti Nomor
+            </button>
+          </div>
+        </div>
+
+        <!-- Jika status SCAN_QR_CODE atau FAILED/STOPPED -->
+        <div v-else class="text-center my-4">
+          <div v-if="qrLoading" class="w-64 h-64 mx-auto rounded-xl bg-surfacealt border flex flex-col items-center justify-center text-xs text-inkmuted">
+            <div class="animate-spin text-2xl mb-2">⏳</div>
+            <span>Membuat QR Code baru...</span>
+          </div>
+          <div v-else class="relative inline-block mx-auto p-2 bg-white rounded-xl border border-line shadow-sm">
+            <img :src="qrImageUrl" alt="QR Code WhatsApp" class="w-60 h-60 mx-auto rounded-lg object-contain" />
+          </div>
+
+          <div class="mt-3 text-xs text-inkmuted leading-relaxed max-w-xs mx-auto text-left space-y-1">
+            <div class="font-bold text-ink">Langkah Scan:</div>
+            <div>1. Buka <b>WhatsApp</b> di HP Anda</div>
+            <div>2. Ketuk <b>Titik Tiga</b> (kanan atas) ➜ <b>Perangkat Tertaut</b></div>
+            <div>3. Ketuk <b>Tautkan Perangkat</b> dan scan kode di atas</div>
+          </div>
+
+          <div class="mt-4 flex items-center justify-center gap-2">
+            <button class="btn btn-sm bg-emerald-700 hover:bg-emerald-800 text-white text-xs flex items-center gap-1" :disabled="loadingBotAction" @click="handleRestartBot">
+              <span>🔄 Buat / Refresh QR Code Baru</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-5 pt-3 border-t border-line flex items-center justify-between text-xs text-inkmuted">
+          <span>Sesi: <b>default</b></span>
+          <button class="btn btn-outline btn-sm" @click="closeBotModal">Tutup</button>
+        </div>
+      </div>
+    </div>
+    </Transition>
   </div>
 </template>
 
@@ -225,6 +298,61 @@ const shifts = ref([]);
 const showAddEmployee = ref(false);
 const showShiftModal = ref(false);
 const showBotFormatHelp = ref(false);
+const showBotModal = ref(false);
+const botStatus = ref('');
+const botMe = ref(null);
+const qrTimestamp = ref(Date.now());
+const qrLoading = ref(false);
+const loadingBotAction = ref(false);
+let botPollTimer = null;
+
+const qrImageUrl = computed(() => `/api/whatsapp/qr?t=${qrTimestamp.value}`);
+
+async function checkBotStatus() {
+  try {
+    const { data } = await api.get('/whatsapp/status');
+    botStatus.value = data?.waha?.status || '';
+    botMe.value = data?.waha?.me || null;
+  } catch (e) {
+    botStatus.value = 'ERROR';
+  }
+}
+
+async function handleRestartBot() {
+  loadingBotAction.value = true;
+  qrLoading.value = true;
+  try {
+    await api.post('/whatsapp/restart');
+    await new Promise(r => setTimeout(r, 1000));
+    qrTimestamp.value = Date.now();
+    await checkBotStatus();
+  } catch (e) {
+    alert('Gagal merefresh QR Code bot.');
+  } finally {
+    loadingBotAction.value = false;
+    qrLoading.value = false;
+  }
+}
+
+function openBotModal() {
+  showBotModal.value = true;
+  qrTimestamp.value = Date.now();
+  checkBotStatus();
+  if (botPollTimer) clearInterval(botPollTimer);
+  botPollTimer = setInterval(async () => {
+    if (!showBotModal.value) return;
+    await checkBotStatus();
+  }, 3500);
+}
+
+function closeBotModal() {
+  showBotModal.value = false;
+  if (botPollTimer) {
+    clearInterval(botPollTimer);
+    botPollTimer = null;
+  }
+}
+
 const showCredentialsModal = ref(false);
 const editingShift = ref(null); // null = mode tambah, objek = mode edit
 const editingCredentials = ref(null);
@@ -245,7 +373,11 @@ async function loadAll() {
   employees.value = e;
   shifts.value = s;
 }
-onMounted(loadAll);
+
+onMounted(() => {
+  loadAll();
+  checkBotStatus();
+});
 
 function dotClass(color) {
   return { amber: 'bg-amber', teal: 'bg-teal', plum: 'bg-plum' }[color] || 'bg-amber';
