@@ -31,6 +31,7 @@ Route::get('/whatsapp/status', [WhatsAppWebhookController::class, 'status']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::put('/me', [AuthController::class, 'updateProfile']);
 
     // Notifikasi (semua role bisa lihat)
     Route::get('/notices', [NoticeController::class, 'index']);

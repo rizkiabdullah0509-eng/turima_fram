@@ -51,4 +51,28 @@ class AuthController extends Controller
     {
         return response()->json($request->user());
     }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'password' => ['sometimes', 'nullable', 'string', 'min:4'],
+        ]);
+
+        if (array_key_exists('phone', $data)) {
+            $data['phone'] = !empty($data['phone']) ? User::normalizePhoneNumber($data['phone']) : null;
+        }
+
+        if (!empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        } else {
+            unset($data['password']);
+        }
+
+        $user->update($data);
+
+        return response()->json($user);
+    }
 }

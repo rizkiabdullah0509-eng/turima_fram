@@ -70,7 +70,11 @@
             <span class="h-2.5 w-2.5 rounded-full bg-[#6FE3A5] shadow-[0_0_0_4px_rgba(111,227,165,0.16)] animate-pulse"></span>
             {{ liveClock }}
           </div>
-          <div class="hidden text-sm font-semibold sm:block">{{ auth.user?.name }}</div>
+          <button class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-line hover:bg-surfacealt text-sm font-semibold transition" type="button" @click="openProfileModal" title="Klik untuk edit profil & no. WhatsApp">
+            <span>👤 {{ auth.user?.name }}</span>
+            <span v-if="auth.user?.phone" class="text-[10px] font-mono text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-300">WA: {{ auth.user.phone }}</span>
+            <span v-else class="text-[10px] text-amberink bg-[#FBE3B8] px-1.5 py-0.5 rounded">+ No WA</span>
+          </button>
           <button class="btn btn-ghost btn-sm" type="button" @click="promptLogout">Keluar</button>
           <div class="relative">
             <button class="w-9 h-9 rounded-lg border border-line bg-surface relative" @click="bellOpen = !bellOpen">
@@ -114,6 +118,44 @@
     @confirm="confirmLogout"
     @cancel="showLogoutConfirm = false"
   />
+
+  <!-- Modal Edit Profil & WhatsApp -->
+  <Transition name="app-modal" appear>
+    <div v-if="showProfileModal" class="fixed inset-0 bg-black/45 flex items-center justify-center z-[200] p-5" @click.self="showProfileModal = false">
+      <div class="app-modal-card bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+        <h3 class="font-display font-bold text-base mb-1">Pengaturan Profil &amp; WhatsApp</h3>
+        <p class="text-inkmuted text-xs mb-4">Pengaturan akun Anda untuk akses aplikasi &amp; WhatsApp Bot.</p>
+
+        <div class="field mb-3">
+          <label>Nama Lengkap</label>
+          <input v-model="profileForm.name" placeholder="Nama Anda">
+        </div>
+
+        <div class="field mb-3">
+          <label>Username</label>
+          <input :value="auth.user?.username" disabled class="bg-surfacealt opacity-70 cursor-not-allowed">
+        </div>
+
+        <div class="field mb-3">
+          <label>Nomor WhatsApp</label>
+          <input v-model="profileForm.phone" placeholder="Contoh: 081234567890">
+          <p class="text-[10px] text-inkfaint mt-1">Nomor ini digunakan untuk otorisasi perintah WhatsApp Bot.</p>
+        </div>
+
+        <div class="field mb-4">
+          <label>Kata Sandi Baru (opsional)</label>
+          <input v-model="profileForm.password" type="password" placeholder="Kosongkan jika tidak diubah">
+        </div>
+
+        <div class="flex justify-end gap-2">
+          <button class="btn btn-ghost" @click="showProfileModal = false">Batal</button>
+          <button class="btn btn-primary" :disabled="savingProfile" @click="saveProfile">
+            {{ savingProfile ? 'Menyimpan...' : 'Simpan Profil' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </Transition>
 </template>
 
 <script setup>
@@ -220,4 +262,42 @@ async function confirmLogout() {
 
 // Alias untuk kompatibilitas
 const handleLogout = promptLogout;
+
+const showProfileModal = ref(false);
+const savingProfile = ref(false);
+const profileForm = ref({ name: '', phone: '', password: '' });
+
+function openProfileModal() {
+  profileForm.value = {
+    name: auth.user?.name || '',
+    phone: auth.user?.phone || '',
+    password: '',
+  };
+  showProfileModal.value = true;
+}
+
+async function saveProfile() {
+  if (!profileForm.value.name.trim()) {
+    alert('Nama tidak boleh kosong.');
+    return;
+  }
+  savingProfile.value = true;
+  try {
+    const payload = {
+      name: profileForm.value.name.trim(),
+      phone: profileForm.value.phone?.trim() || null,
+    };
+    if (profileForm.value.password) {
+      payload.password = profileForm.value.password;
+    }
+    const { data } = await api.put('/me', payload);
+    auth.setUser(data);
+    showProfileModal.value = false;
+    alert('Profil dan nomor WhatsApp berhasil disimpan!');
+  } catch (error) {
+    alert(error.response?.data?.message || 'Gagal menyimpan profil.');
+  } finally {
+    savingProfile.value = false;
+  }
+}
 </script>

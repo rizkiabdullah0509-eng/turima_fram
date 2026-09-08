@@ -1,6 +1,23 @@
 <template>
-  <div class="grid lg:grid-cols-2 gap-4 items-start">
-    <div class="card p-4">
+  <div>
+    <!-- Banner WhatsApp Bot Penugasan -->
+    <div class="mb-4 p-4 rounded-xl border border-emerald-200 bg-emerald-50/90 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+      <div>
+        <div class="flex items-center gap-2 font-display font-bold text-emerald-950 text-sm">
+          <span>📱 WhatsApp Bot Penugasan Tugas Harian</span>
+          <span class="text-[10px] bg-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded-full">Khusus Manajer &amp; Berakses</span>
+        </div>
+        <p class="text-xs text-emerald-800 mt-1">
+          Manajer dan staf dengan akses <b>Jadwal Tim</b> dapat langsung menugaskan tugas harian karyawan cukup via WhatsApp tanpa perlu membuka aplikasi web.
+        </p>
+      </div>
+      <button class="btn btn-sm bg-emerald-700 hover:bg-emerald-800 text-white font-medium shrink-0 self-start sm:self-auto" type="button" @click="showBotFormatHelp = true">
+        📖 Contoh Format Chat
+      </button>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-4 items-start">
+      <div class="card p-4">
       <div class="flex justify-between items-start mb-3">
         <div>
           <div class="font-display font-bold text-base">Daftar Karyawan</div>
@@ -164,6 +181,37 @@
       @confirm="confirmAction"
       @cancel="confirmation = null"
     />
+    </div>
+
+    <!-- Modal Petunjuk Format Chat WhatsApp Bot -->
+    <Transition name="app-modal" appear>
+    <div v-if="showBotFormatHelp" class="fixed inset-0 bg-black/45 flex items-center justify-center z-[150] p-5" @click.self="showBotFormatHelp = false">
+      <div class="app-modal-card bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+        <h3 class="font-display font-bold text-base mb-1">Contoh Format Chat WhatsApp Bot</h3>
+        <p class="text-inkmuted text-xs mb-3">Ketik nama/username karyawan dan daftar tugas bernomor ke nomor bot WhatsApp:</p>
+
+        <div class="bg-gray-900 text-emerald-400 p-3.5 rounded-xl font-mono text-xs leading-relaxed overflow-x-auto select-all mb-3 whitespace-pre">budi 
+1. membersikan rumput
+2. ngasah arit
+3. mencuci mobil
+
+cici 
+1. membersihkan selokan 
+2. ngasih makan ayam 
+3. membuat nasi</div>
+
+        <div class="text-xs text-inkmuted space-y-1.5 mb-4">
+          <div>💡 <b>Ketik "semua"</b> sebagai nama untuk menugaskan ke seluruh karyawan tim.</div>
+          <div>💡 <b>Ketik "besok"</b> di baris paling awal jika ingin menugaskan untuk hari esok.</div>
+          <div>💡 <b>Ketik "progres"</b> untuk memantau status penyelesaian tugas tim hari ini.</div>
+        </div>
+
+        <div class="flex justify-end">
+          <button class="btn btn-primary btn-sm" @click="showBotFormatHelp = false">Tutup</button>
+        </div>
+      </div>
+    </div>
+    </Transition>
   </div>
 </template>
 
@@ -176,6 +224,7 @@ const employees = ref([]);
 const shifts = ref([]);
 const showAddEmployee = ref(false);
 const showShiftModal = ref(false);
+const showBotFormatHelp = ref(false);
 const showCredentialsModal = ref(false);
 const editingShift = ref(null); // null = mode tambah, objek = mode edit
 const editingCredentials = ref(null);

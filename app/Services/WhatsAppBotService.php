@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Notice;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\WhatsAppSession;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class WhatsAppBotService
 {
@@ -29,7 +32,7 @@ class WhatsAppBotService
             return;
         }
 
-        // 1. Verifikasi apakah nomor pengirim terdaftar sebagai karyawan
+        // 1. Verifikasi apakah nomor pengirim terdaftar di sistem
         $user = $this->findUserByPhone($phone);
 
         if (! $user) {
@@ -37,366 +40,402 @@ class WhatsAppBotService
                 $fromChatId,
                 "⚠️ *Nomor Tidak Terdaftar*\n\n"
                 . "Nomor WhatsApp Anda ({$phone}) belum terdaftar di sistem *TURIMA FRAM*.\n\n"
-                . "Silakan hubungi Manajer / Admin untuk mendaftarkan nomor WhatsApp Anda pada data karyawan."
+                . "Silakan masukkan nomor WhatsApp Anda pada pengaturan akun web atau hubungi Administrator."
             );
             return;
         }
 
-        // 2. Ambil atau buat sesi percakapan
+        // 2. Verifikasi hak akses: Khusus Manajer, Admin, atau Karyawan dengan hak akses jadwal/tugas
+        if (! $user->canManageTeamSchedule()) {
+            $this->waha->sendMessage(
+                $fromChatId,
+                "⚠️ *Akses Ditolak*\n\n"
+                . "Halo *{$user->name}*!\n"
+                . "Fitur WhatsApp Bot ini dikhususkan bagi *Manajer* dan *Karyawan yang diberi akses* untuk mengelola dan mengunggah tugas harian tim.\n\n"
+                . "Silakan hubungi Manajer jika Anda membutuhkan izin akses kelola tugas."
+            );
+            return;
+        }
+
+        // Simpan / update sesi percakapan
         $session = WhatsAppSession::firstOrCreate(
             ['phone_number' => $phone],
             [
                 'user_id' => $user->id,
-                'current_step' => 'MENU',
+                'current_step' => 'IDLE',
                 'last_active_at' => Carbon::now(),
             ]
         );
-
-        // Pastikan user_id tersinkron
-        if ($session->user_id !== $user->id) {
-            $session->user_id = $user->id;
-            $session->save();
-        }
-
-        // 3. Tangani perintah global (Batal / Menu / Halo)
-        $lowerText = strtolower($text);
-
-        if (in_array($lowerText, ['batal', 'cancel', 'reset'])) {
-            $session->resetToMenu();
-            $this->waha->sendMessage(
-                $fromChatId,
-                "❌ *Aksi Dibatalkan*\n\n"
-                . "Percakapan telah direset. Ketik *menu* untuk melihat opsi yang tersedia."
-            );
-            return;
-        }
-
-        if (in_array($lowerText, ['menu', 'halo', 'hai', 'hi', 'p', 'help', 'bantuan'])) {
-            $session->resetToMenu();
-            $this->sendMainMenu($fromChatId, $user);
-            return;
-        }
-
-        // 4. Deteksi timeout sesi (jika sudah lebih dari 15 menit dan sedang di tengah alur)
-        if ($session->current_step !== 'MENU' && $session->isExpired(config('waha.session_timeout_minutes', 15))) {
-            $session->resetToMenu();
-            $this->waha->sendMessage(
-                $fromChatId,
-                "⏰ *Sesi Berakhir (Timeout)*\n\n"
-                . "Sesi input tugas Anda sebelumnya telah kedaluwarsa karena tidak ada aktivitas."
-            );
-            $this->sendMainMenu($fromChatId, $user);
-            return;
-        }
-
-        // Update timestamp interaksi terakhir
         $session->last_active_at = Carbon::now();
         $session->save();
 
-        // 5. Jalankan state machine percakapan
-        switch ($session->current_step) {
-            case 'MENU':
-                $this->handleMenuStep($fromChatId, $user, $session, $text);
-                break;
+        $cleanText = strtolower(trim($text));
 
-            case 'AWAITING_TITLE':
-                $this->handleAwaitingTitleStep($fromChatId, $user, $session, $text);
-                break;
-
-            case 'AWAITING_DESCRIPTION':
-                $this->handleAwaitingDescriptionStep($fromChatId, $user, $session, $text);
-                break;
-
-            case 'AWAITING_STATUS':
-                $this->handleAwaitingStatusStep($fromChatId, $user, $session, $text);
-                break;
-
-            case 'AWAITING_CONFIRMATION':
-                $this->handleAwaitingConfirmationStep($fromChatId, $user, $session, $text);
-                break;
-
-            default:
-                $session->resetToMenu();
-                $this->sendMainMenu($fromChatId, $user);
-                break;
-        }
-    }
-
-    /**
-     * Tampilkan Menu Utama
-     */
-    protected function sendMainMenu(string $fromChatId, User $user): void
-    {
-        $greeting = "Halo *{$user->name}* 👋\nAda yang bisa dibantu hari ini?\n\n"
-            . "1️⃣ *Input Tugas Baru*\n"
-            . "2️⃣ *Lihat Tugas Hari Ini*\n\n"
-            . "Balas dengan mengetik angka pilihan (*1* atau *2*).";
-
-        $this->waha->sendMessage($fromChatId, $greeting);
-    }
-
-    /**
-     * Tahap 0: Pemilihan Menu Utama (1 atau 2)
-     */
-    protected function handleMenuStep(string $fromChatId, User $user, WhatsAppSession $session, string $input): void
-    {
-        if ($input === '1') {
-            $session->update([
-                'current_step' => 'AWAITING_TITLE',
-                'temp_data' => [],
-            ]);
-
-            $this->waha->sendMessage(
-                $fromChatId,
-                "📝 *Input Tugas Baru*\n\n"
-                . "Silakan ketik *Judul Tugas* yang ingin dicatat:\n"
-                . "_(Ketik 'batal' kapan saja untuk membatalkan)_"
-            );
-        } elseif ($input === '2') {
-            $this->showTodayTasks($fromChatId, $user);
-        } else {
-            $this->waha->sendMessage(
-                $fromChatId,
-                "⚠️ Pilihan tidak dikenali. Silakan balas dengan angka *1* (Input Tugas) atau *2* (Lihat Tugas)."
-            );
-        }
-    }
-
-    /**
-     * Tahap 1: Menerima Judul Tugas
-     */
-    protected function handleAwaitingTitleStep(string $fromChatId, User $user, WhatsAppSession $session, string $input): void
-    {
-        if (mb_strlen($input) < 3) {
-            $this->waha->sendMessage(
-                $fromChatId,
-                "⚠️ Judul tugas terlalu pendek (minimal 3 karakter). Silakan ketik kembali judul tugas:"
-            );
+        // 3. Perintah Bantuan / Menu
+        if (in_array($cleanText, ['menu', 'halo', 'hai', 'hi', 'help', 'bantuan', 'start', 'p'])) {
+            $this->sendHelpMenu($fromChatId, $user);
             return;
         }
 
-        $temp = $session->temp_data ?? [];
-        $temp['title'] = $input;
+        // 4. Perintah Daftar Karyawan
+        if (in_array($cleanText, ['karyawan', 'list', 'daftar', 'pegawai'])) {
+            $this->sendEmployeeList($fromChatId);
+            return;
+        }
 
-        $session->update([
-            'current_step' => 'AWAITING_DESCRIPTION',
-            'temp_data' => $temp,
-        ]);
+        // 5. Perintah Pantau Progres Tugas Hari Ini
+        if (in_array($cleanText, ['progres', 'progress', 'status', 'pantau', 'cek'])) {
+            $this->sendTeamProgress($fromChatId);
+            return;
+        }
 
+        // 6. Coba parsing format penugasan tugas harian
+        $parsed = $this->parseTasksText($text);
+
+        if (! empty($parsed['assignments'])) {
+            $this->executeTaskAssignment($fromChatId, $user, $parsed);
+            return;
+        }
+
+        // 7. Jika pesan tidak dikenali
         $this->waha->sendMessage(
             $fromChatId,
-            "📌 Judul: *{$input}*\n\n"
-            . "Ada rincian / deskripsi tambahan untuk tugas ini?\n"
-            . "_(Ketik rincian deskripsi, atau ketik *skip* jika tidak ada)_"
+            "⚠️ *Perintah Tidak Dikenali*\n\n"
+            . "Untuk mengunggah tugas harian karyawan, ketik nama karyawan dan daftar tugas bernomor, contoh:\n\n"
+            . "*budi*\n"
+            . "1. membersikan rumput\n"
+            . "2. ngasah arit\n"
+            . "3. mencuci mobil\n\n"
+            . "*cici*\n"
+            . "1. membersihkan selokan\n"
+            . "2. ngasih makan ayam\n\n"
+            . "Ketik *menu* untuk panduan lengkap atau *karyawan* untuk melihat daftar nama karyawan."
         );
     }
 
     /**
-     * Tahap 2: Menerima Deskripsi Tugas (bisa 'skip')
+     * Tampilkan menu panduan penugasan tugas
      */
-    protected function handleAwaitingDescriptionStep(string $fromChatId, User $user, WhatsAppSession $session, string $input): void
+    public function sendHelpMenu(string $fromChatId, User $user): void
     {
-        $temp = $session->temp_data ?? [];
+        $roleLabel = $user->isManager() ? 'Manajer' : ($user->isAdmin() ? 'Admin' : 'Pengelola Tugas Tim');
 
-        if (strtolower($input) === 'skip' || $input === '-') {
-            $temp['description'] = null;
-        } else {
-            $temp['description'] = $input;
-        }
-
-        $session->update([
-            'current_step' => 'AWAITING_STATUS',
-            'temp_data' => $temp,
-        ]);
-
-        $this->waha->sendMessage(
-            $fromChatId,
-            "📊 *Pilih Status Awal Tugas*:\n\n"
-            . "1️⃣ Belum Dikerjakan\n"
-            . "2️⃣ Sedang Dikerjakan\n"
-            . "3️⃣ Selesai\n\n"
-            . "Balas dengan angka *1*, *2*, atau *3*:"
-        );
-    }
-
-    /**
-     * Tahap 3: Menerima Status Tugas & Tampilkan Konfirmasi
-     */
-    protected function handleAwaitingStatusStep(string $fromChatId, User $user, WhatsAppSession $session, string $input): void
-    {
-        $statusMap = [
-            '1' => ['key' => 'pending', 'label' => 'Belum Dikerjakan'],
-            '2' => ['key' => 'in_progress', 'label' => 'Sedang Dikerjakan'],
-            '3' => ['key' => 'done', 'label' => 'Selesai'],
-        ];
-
-        if (! isset($statusMap[$input])) {
-            $this->waha->sendMessage(
-                $fromChatId,
-                "⚠️ Pilihan status tidak valid. Silakan balas dengan angka:\n"
-                . "1️⃣ Belum Dikerjakan\n"
-                . "2️⃣ Sedang Dikerjakan\n"
-                . "3️⃣ Selesai"
-            );
-            return;
-        }
-
-        $temp = $session->temp_data ?? [];
-        $temp['status'] = $statusMap[$input]['key'];
-        $temp['status_label'] = $statusMap[$input]['label'];
-
-        $session->update([
-            'current_step' => 'AWAITING_CONFIRMATION',
-            'temp_data' => $temp,
-        ]);
-
-        $descDisplay = $temp['description'] ? $temp['description'] : '-';
-
-        $this->waha->sendMessage(
-            $fromChatId,
-            "🔍 *Konfirmasi Data Tugas:*\n\n"
-            . "📌 *Judul:* {$temp['title']}\n"
-            . "📝 *Deskripsi:* {$descDisplay}\n"
-            . "📊 *Status:* {$temp['status_label']}\n\n"
-            . "Apakah data sudah benar?\n"
-            . "Balas *Ya* untuk simpan, atau *Batal* untuk membatalkan."
-        );
-    }
-
-    /**
-     * Tahap 4: Konfirmasi Simpan Tugas
-     */
-    protected function handleAwaitingConfirmationStep(string $fromChatId, User $user, WhatsAppSession $session, string $input): void
-    {
-        $lower = strtolower($input);
-
-        if (in_array($lower, ['ya', 'y', 'yes', 'simpan', 'ok', 'oke', 'benar', 'setuju'])) {
-            $temp = $session->temp_data ?? [];
-            $today = Carbon::today()->toDateString();
-
-            $maxOrder = Task::where('user_id', $user->id)
-                ->where('date', $today)
-                ->max('sort_order') ?? 0;
-
-            $status = $temp['status'] ?? 'pending';
-            $completedAt = $status === 'done' ? Carbon::now() : null;
-
-            Task::create([
-                'user_id' => $user->id,
-                'date' => $today,
-                'title' => $temp['title'],
-                'description' => $temp['description'] ?? null,
-                'status' => $status,
-                'source' => 'whatsapp',
-                'sort_order' => $maxOrder + 1,
-                'completed_at' => $completedAt,
-            ]);
-
-            $session->resetToMenu();
-
-            $this->waha->sendMessage(
-                $fromChatId,
-                "✅ *Tugas Berhasil Dicatat!*\n\n"
-                . "Tugas *\"{$temp['title']}\"* telah tersimpan ke sistem TURIMA FRAM dan tersinkron ke dashboard web.\n\n"
-                . "Terima kasih, *{$user->name}*! 🙏\n"
-                . "Ketik *menu* jika ingin melakukan hal lain."
-            );
-        } elseif (in_array($lower, ['tidak', 'batal', 'no', 't'])) {
-            $session->resetToMenu();
-
-            $this->waha->sendMessage(
-                $fromChatId,
-                "❌ *Pencatatan Tugas Dibatalkan.*\n\n"
-                . "Ketik *menu* jika ingin kembali ke menu utama."
-            );
-        } else {
-            $this->waha->sendMessage(
-                $fromChatId,
-                "⚠️ Balasan tidak dikenali. Silakan balas *Ya* untuk menyimpan atau *Batal* untuk membatalkan."
-            );
-        }
-    }
-
-    /**
-     * Tampilkan Daftar Tugas Karyawan Hari Ini (Opsi Menu 2)
-     */
-    protected function showTodayTasks(string $fromChatId, User $user): void
-    {
-        $today = Carbon::today();
-        $todayStr = $today->toDateString();
-        $dateFormatted = $today->format('d-m-Y');
-
-        $tasks = Task::where('user_id', $user->id)
-            ->where('date', $todayStr)
-            ->orderBy('sort_order')
-            ->get();
-
-        if ($tasks->isEmpty()) {
-            $this->waha->sendMessage(
-                $fromChatId,
-                "📋 *Daftar Tugas Hari Ini ({$dateFormatted})*\n\n"
-                . "Belum ada tugas yang tercatat untuk hari ini.\n\n"
-                . "Ketik *1* untuk mencatat tugas baru."
-            );
-            return;
-        }
-
-        $message = "📋 *Daftar Tugas Anda Hari Ini ({$dateFormatted})*:\n\n";
-
-        foreach ($tasks as $index => $task) {
-            $num = $index + 1;
-            $statusBadge = match ($task->status) {
-                'done' => '✅ [Selesai]',
-                'in_progress' => '⏳ [Sedang Dikerjakan]',
-                default => '📌 [Belum Selesai]',
-            };
-
-            $sourceBadge = $task->source === 'whatsapp' ? ' 📱' : '';
-
-            $message .= "{$num}. {$statusBadge} *{$task->title}*{$sourceBadge}\n";
-
-            if ($task->description) {
-                $message .= "   └ 📝 _{$task->description}_\n";
-            }
-
-            if ($task->status === 'done' && $task->completed_at) {
-                $time = Carbon::parse($task->completed_at)->format('H:i');
-                $message .= "   └ ⏱️ Selesai pukul {$time}\n";
-            }
-
-            $message .= "\n";
-        }
-
-        $message .= "Ketik *1* untuk menambah tugas baru, atau ketik *menu* untuk kembali.";
+        $message = "Halo *{$user->name}* 👋 ({$roleLabel})\n\n"
+            . "🤖 *Format Input Tugas Harian Tanpa Buka Aplikasi*\n\n"
+            . "Cukup ketik nama karyawan diikuti daftar tugasnya, contoh:\n\n"
+            . "budi\n"
+            . "1. membersikan rumput\n"
+            . "2. ngasah arit\n"
+            . "3. mencuci mobil\n\n"
+            . "cici\n"
+            . "1. membersihkan selokan\n"
+            . "2. ngasih makan ayam\n"
+            . "3. membuat nasi\n\n"
+            . "💡 *Perintah Lainnya:*\n"
+            . "• Gunakan *semua* sebagai nama untuk menugaskan ke seluruh karyawan tim.\n"
+            . "• Tambahkan kata *besok* di baris paling atas jika ingin menjadwalkan untuk besok.\n"
+            . "• Ketik *progres* untuk melihat penyelesaian tugas tim hari ini.\n"
+            . "• Ketik *karyawan* untuk melihat daftar username karyawan aktif.";
 
         $this->waha->sendMessage($fromChatId, $message);
     }
 
     /**
-     * Cari user karyawan berdasarkan nomor telepon yang cocok.
+     * Tampilkan daftar karyawan aktif
      */
-    protected function findUserByPhone(string $rawPhone): ?User
+    public function sendEmployeeList(string $fromChatId): void
     {
-        $normalized = User::normalizePhoneNumber($rawPhone);
+        $employees = User::where('role', 'employee')->orderBy('name')->get();
 
-        if (! $normalized) {
-            return null;
+        if ($employees->isEmpty()) {
+            $this->waha->sendMessage($fromChatId, "Belum ada karyawan terdaftar di sistem.");
+            return;
         }
 
-        // Cari exact match atau kemiripan awalan 08/62
-        $user = User::where('phone', $normalized)->first();
+        $lines = ["👥 *Daftar Karyawan Aktif:*"];
+        foreach ($employees as $i => $e) {
+            $lines[] = ($i + 1) . ". *{$e->name}* (username: `{$e->username}`)";
+        }
+        $lines[] = "\nKetik nama/username karyawan di atas diikuti daftar tugasnya untuk memberikan tugas.";
 
+        $this->waha->sendMessage($fromChatId, implode("\n", $lines));
+    }
+
+    /**
+     * Tampilkan ringkasan progres pengerjaan tugas tim hari ini
+     */
+    public function sendTeamProgress(string $fromChatId, ?string $targetDate = null): void
+    {
+        $date = $targetDate ?: Carbon::today()->toDateString();
+        $dateLabel = Carbon::parse($date)->locale('id')->isoFormat('dddd, DD-MM-YYYY');
+
+        $employees = User::where('role', 'employee')->orderBy('name')->get();
+        $tasks = Task::where('date', $date)->get();
+
+        if ($tasks->isEmpty()) {
+            $this->waha->sendMessage(
+                $fromChatId,
+                "📊 *Progres Tugas Tim*\n📅 {$dateLabel}\n\nBelum ada tugas yang ditugaskan untuk tanggal ini.\n\nKetik *menu* untuk melihat contoh cara menugaskan."
+            );
+            return;
+        }
+
+        $totalDone = $tasks->where('status', 'done')->count();
+        $totalAll = $tasks->count();
+        $percent = $totalAll > 0 ? round(($totalDone / $totalAll) * 100) : 0;
+
+        $lines = [
+            "📊 *Progres Tugas Tim*",
+            "📅 {$dateLabel}\n"
+        ];
+
+        foreach ($employees as $emp) {
+            $empTasks = $tasks->where('user_id', $emp->id);
+            if ($empTasks->isEmpty()) {
+                continue;
+            }
+
+            $done = $empTasks->where('status', 'done')->count();
+            $inProgress = $empTasks->where('status', 'in_progress')->count();
+            $pending = $empTasks->where('status', 'pending')->count();
+            $total = $empTasks->count();
+
+            $statusText = "✓ {$done} Selesai";
+            if ($inProgress > 0) {
+                $statusText .= ", ⏳ {$inProgress} Sedang";
+            }
+            if ($pending > 0) {
+                $statusText .= ", {$pending} Belum";
+            }
+
+            $badge = ($done === $total) ? " 🎉" : "";
+            $lines[] = "👤 *{$emp->name}* ({$total} tugas)\n   └ {$statusText}{$badge}";
+        }
+
+        $lines[] = "\n──────────────────";
+        $lines[] = "📈 *Total Tim:* {$totalDone}/{$totalAll} tugas selesai ({$percent}%)";
+
+        $this->waha->sendMessage($fromChatId, implode("\n", $lines));
+    }
+
+    /**
+     * Parser teks penugasan multi-karyawan.
+     * Mendukung:
+     * budi
+     * 1. membersikan rumput
+     * 2. ngasah arit
+     *
+     * cici
+     * 1. membersihkan selokan
+     */
+    public function parseTasksText(string $text): array
+    {
+        $rawLines = preg_split('/\r\n|\r|\n/', trim($text));
+        $employees = User::where('role', 'employee')->get();
+
+        // Index karyawan untuk pencarian fleksibel
+        $employeeLookup = [];
+        foreach ($employees as $emp) {
+            $employeeLookup[strtolower(trim($emp->username))] = $emp;
+            $employeeLookup[strtolower(trim($emp->name))] = $emp;
+            // Ambil nama depan
+            $firstName = strtolower(explode(' ', trim($emp->name))[0]);
+            if (! isset($employeeLookup[$firstName])) {
+                $employeeLookup[$firstName] = $emp;
+            }
+        }
+
+        $targetDate = Carbon::today()->toDateString();
+        $assignments = [];
+        $unrecognized = [];
+
+        $currentKey = null; // 'all' atau ID user
+        $currentEmployee = null;
+        $currentEmployeeLabel = '';
+        $currentTasks = [];
+
+        $flushCurrent = function () use (&$assignments, &$currentKey, &$currentEmployee, &$currentEmployeeLabel, &$currentTasks) {
+            if ($currentKey !== null && ! empty($currentTasks)) {
+                $assignments[] = [
+                    'key' => $currentKey,
+                    'is_all' => ($currentKey === 'all'),
+                    'employee' => $currentEmployee,
+                    'label' => $currentEmployeeLabel,
+                    'tasks' => $currentTasks,
+                ];
+            }
+            $currentTasks = [];
+        };
+
+        foreach ($rawLines as $lineIndex => $line) {
+            $trimmed = trim($line);
+            if ($trimmed === '') {
+                continue;
+            }
+
+            // Cek baris pertama apakah mengatur tanggal
+            if ($lineIndex === 0) {
+                $lowerFirst = strtolower($trimmed);
+                if (in_array($lowerFirst, ['besok', 'tomorrow'])) {
+                    $targetDate = Carbon::tomorrow()->toDateString();
+                    continue;
+                }
+                if (in_array($lowerFirst, ['hari ini', 'today'])) {
+                    $targetDate = Carbon::today()->toDateString();
+                    continue;
+                }
+                if (preg_match('/^tanggal[:\s]+(\d{4}-\d{2}-\d{2})$/i', $trimmed, $m)) {
+                    $targetDate = $m[1];
+                    continue;
+                }
+                if (preg_match('/^tanggal[:\s]+(\d{2}-\d{2}-\d{4})$/i', $trimmed, $m)) {
+                    $targetDate = Carbon::createFromFormat('d-m-Y', $m[1])->toDateString();
+                    continue;
+                }
+            }
+
+            // Bersihkan format markdown asterisks (*), titik dua (:), pagar (#)
+            $cleanHeaderCandidate = strtolower(trim(preg_replace('/^[\*\_\|\#\:\-\s]+|[\*\_\|\#\:\-\s]+$/u', '', $trimmed)));
+
+            // Cek apakah baris ini adalah nama karyawan atau 'semua'
+            if ($cleanHeaderCandidate === 'semua' || $cleanHeaderCandidate === 'all' || $cleanHeaderCandidate === 'semua karyawan') {
+                $flushCurrent();
+                $currentKey = 'all';
+                $currentEmployee = null;
+                $currentEmployeeLabel = 'Semua Karyawan';
+                continue;
+            }
+
+            if (isset($employeeLookup[$cleanHeaderCandidate])) {
+                $flushCurrent();
+                $emp = $employeeLookup[$cleanHeaderCandidate];
+                $currentKey = $emp->id;
+                $currentEmployee = $emp;
+                $currentEmployeeLabel = $emp->name;
+                continue;
+            }
+
+            // Jika baris ini diawali angka/bullet atau baris tugas
+            // Contoh: "1. membersihkan rumput", "2) ngasah arit", "- cek kandang"
+            if ($currentKey !== null) {
+                $cleanTask = preg_replace('/^(\d+[\.\)\-]\s*|[\-\*\•\>]\s*)/u', '', $trimmed);
+                $cleanTask = trim($cleanTask);
+
+                if (mb_strlen($cleanTask) >= 2) {
+                    $currentTasks[] = $cleanTask;
+                }
+            } else {
+                // Jika belum ada header karyawan, tapi baris tampak seperti nama yang tidak terdaftar
+                if (! preg_match('/^\d+[\.\)]/', $trimmed) && mb_strlen($cleanHeaderCandidate) >= 2) {
+                    $unrecognized[] = $cleanHeaderCandidate;
+                }
+            }
+        }
+
+        $flushCurrent();
+
+        return [
+            'date' => $targetDate,
+            'assignments' => $assignments,
+            'unrecognized' => array_unique($unrecognized),
+        ];
+    }
+
+    /**
+     * Eksekusi penyimpanan tugas ke database
+     */
+    protected function executeTaskAssignment(string $fromChatId, User $author, array $parsed): void
+    {
+        $date = $parsed['date'];
+        $assignments = $parsed['assignments'];
+        $unrecognized = $parsed['unrecognized'] ?? [];
+
+        $dateFormatted = Carbon::parse($date)->locale('id')->isoFormat('dddd, DD-MM-YYYY');
+        $allEmployees = User::where('role', 'employee')->get();
+
+        $savedReport = [];
+        $totalCreated = 0;
+
+        DB::transaction(function () use ($assignments, $date, $allEmployees, &$savedReport, &$totalCreated) {
+            foreach ($assignments as $group) {
+                $targetEmployees = $group['is_all'] ? $allEmployees : collect([$group['employee']]);
+
+                foreach ($targetEmployees as $emp) {
+                    if (! $emp) continue;
+
+                    $maxOrder = Task::where('user_id', $emp->id)
+                        ->where('date', $date)
+                        ->max('sort_order') ?? 0;
+
+                    foreach ($group['tasks'] as $i => $taskTitle) {
+                        Task::create([
+                            'user_id' => $emp->id,
+                            'date' => $date,
+                            'title' => $taskTitle,
+                            'status' => 'pending',
+                            'source' => 'whatsapp',
+                            'sort_order' => $maxOrder + $i + 1,
+                        ]);
+                        $totalCreated++;
+                    }
+
+                    $savedReport[] = [
+                        'name' => $emp->name,
+                        'tasks' => $group['tasks'],
+                    ];
+                }
+            }
+        });
+
+        // Buat record notifikasi web
+        Notice::create([
+            'message' => "{$totalCreated} tugas harian ditugaskan via WhatsApp Bot untuk tanggal {$date}.",
+        ]);
+
+        // Susun balasan WhatsApp
+        $reply = [
+            "✅ *Tugas Berhasil Ditugaskan!*",
+            "📅 Tanggal: *{$dateFormatted}*\n",
+        ];
+
+        foreach ($savedReport as $item) {
+            $count = count($item['tasks']);
+            $reply[] = "👤 *{$item['name']}* ({$count} tugas):";
+            foreach ($item['tasks'] as $idx => $t) {
+                $reply[] = "  " . ($idx + 1) . ". {$t}";
+            }
+            $reply[] = "";
+        }
+
+        if (! empty($unrecognized)) {
+            $reply[] = "⚠️ _Catatan: Nama *" . implode(', ', $unrecognized) . "* tidak ditemukan di daftar karyawan._\n";
+        }
+
+        $reply[] = "Total *{$totalCreated} tugas* telah langsung masuk ke aplikasi karyawan.";
+        $reply[] = "_Ketik *progres* untuk memantau status pengerjaan._";
+
+        $this->waha->sendMessage($fromChatId, implode("\n", $reply));
+    }
+
+    /**
+     * Cari user berdasarkan nomor WhatsApp.
+     */
+    protected function findUserByPhone(string $phone): ?User
+    {
+        $normalized = User::normalizePhoneNumber($phone);
+
+        $user = User::where('phone', $normalized)->first();
         if ($user) {
             return $user;
         }
 
-        // Coba alternatif jika disimpan dengan awalan '08'
-        if (str_starts_with($normalized, '628')) {
-            $local = '08' . substr($normalized, 3);
-            $user = User::where('phone', $local)->first();
-            if ($user) return $user;
-        }
-
-        return null;
+        // Fallback pencarian fleksibel
+        return User::all()->first(function (User $u) use ($phone, $normalized) {
+            if (! $u->phone) {
+                return false;
+            }
+            $uNorm = User::normalizePhoneNumber($u->phone);
+            return $uNorm === $normalized || $u->phone === $phone;
+        });
     }
 }

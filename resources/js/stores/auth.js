@@ -30,5 +30,9 @@ export const useAuthStore = defineStore('auth', {
       localStorage.removeItem('tf_token');
       localStorage.removeItem('tf_user');
     },
+    setUser(user) {
+      this.user = user;
+      localStorage.setItem('tf_user', JSON.stringify(user));
+    },
   },
 });
