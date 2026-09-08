@@ -1,0 +1,23 @@
+﻿services:
+  waha-turima:
+    image: devlikeapro/waha
+    container_name: waha-turima-fram
+    restart: always
+    shm_size: '2gb'
+    ports:
+      - "3005:3000"
+    volumes:
+      - ./waha-sessions:/app/.sessions
+    environment:
+      # --- Kredensial Dashboard & Swagger ---
+      - WAHA_DASHBOARD_USERNAME=turima
+      - WAHA_DASHBOARD_PASSWORD=turima
+      - WHATSAPP_SWAGGER_USERNAME=turima
+      - WHATSAPP_SWAGGER_PASSWORD=turima
+      # --- API Key Mandiri Turima Fram ---
+      - WAHA_API_KEY=turima-secret-key-2026
+      # --- Webhook: langsung ke backend Laravel Turima Fram ---
+      - WHATSAPP_HOOK_URL=http://host.docker.internal:8000/api/whatsapp/webhook
+      - WHATSAPP_HOOK_EVENTS=message
+      # --- Session default engine NOWEB ---
+      - WHATSAPP_DEFAULT_ENGINE=NOWEB
