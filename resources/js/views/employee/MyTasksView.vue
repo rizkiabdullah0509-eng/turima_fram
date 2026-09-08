@@ -17,17 +17,25 @@
         <div class="w-7 h-7 rounded-full flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5"
              :class="{
                'bg-teal text-white': t.status === 'done',
-               'bg-amber text-amberink': t.status !== 'done',
+               'bg-blue-500 text-white': t.status === 'in_progress',
+               'bg-amber text-amberink': t.status !== 'done' && t.status !== 'in_progress',
              }">
-          {{ t.status === 'done' ? '✓' : i + 1 }}
+          {{ t.status === 'done' ? '✓' : (t.status === 'in_progress' ? '⏳' : i + 1) }}
         </div>
         <div class="flex-1 flex justify-between items-start flex-wrap gap-2">
           <div class="flex gap-2.5 items-start">
             <img v-if="t.photo_url" :src="t.photo_url" class="w-11 h-11 rounded-lg object-cover cursor-pointer" @click="photoModal = t.photo_url">
             <div>
-              <div class="font-bold text-sm">{{ t.title }}</div>
-              <div v-if="t.status === 'done'" class="text-[11px] text-inkfaint">Selesai {{ formatDateTime(t.completed_at) }}</div>
-              <div v-else class="text-[11px] text-inkfaint">Siap dikerjakan</div>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-bold text-sm">{{ t.title }}</span>
+                <span v-if="t.source === 'whatsapp'" class="inline-flex items-center text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-1.5 py-0.5 rounded border border-emerald-300" title="Diinput melalui WhatsApp Bot">
+                  📱 WA
+                </span>
+              </div>
+              <div v-if="t.description" class="text-xs text-inkmuted mt-0.5 whitespace-pre-line">{{ t.description }}</div>
+              <div v-if="t.status === 'done'" class="text-[11px] text-inkfaint mt-0.5">Selesai {{ formatDateTime(t.completed_at) }}</div>
+              <div v-else-if="t.status === 'in_progress'" class="text-[11px] text-blue-600 font-medium mt-0.5">Sedang dikerjakan</div>
+              <div v-else class="text-[11px] text-inkfaint mt-0.5">Siap dikerjakan</div>
             </div>
           </div>
           <div>

@@ -25,6 +25,7 @@ class EmployeeController extends Controller
             'username' => ['nullable', 'string', 'max:50'],
             'password' => ['nullable', 'string', 'min:4'],
             'can_manage_schedule' => ['sometimes', 'boolean'],
+            'phone' => ['nullable', 'string', 'max:30'],
         ]);
 
         $username = $this->uniqueUsername($data['username'] ?? $data['name']);
@@ -37,6 +38,7 @@ class EmployeeController extends Controller
             'max_hours' => $data['max_hours'] ?? 40,
             'password' => Hash::make($data['password'] ?? '12345'),
             'can_manage_schedule' => $data['can_manage_schedule'] ?? false,
+            'phone' => !empty($data['phone']) ? User::normalizePhoneNumber($data['phone']) : null,
         ]);
 
         return response()->json($employee, 201);
@@ -51,6 +53,7 @@ class EmployeeController extends Controller
             'username' => ['sometimes', 'string', 'min:3', 'max:50', Rule::unique('users', 'username')->ignore($employee->id)],
             'password' => ['sometimes', 'nullable', 'string', 'min:4', 'max:255'],
             'can_manage_schedule' => ['sometimes', 'boolean'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
         ]);
 
         abort_unless($employee->isEmployee(), 404);
@@ -61,6 +64,10 @@ class EmployeeController extends Controller
             } else {
                 $data['password'] = Hash::make($data['password']);
             }
+        }
+
+        if (array_key_exists('phone', $data)) {
+            $data['phone'] = !empty($data['phone']) ? User::normalizePhoneNumber($data['phone']) : null;
         }
 
         $employee->update($data);

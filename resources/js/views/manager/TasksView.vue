@@ -79,12 +79,18 @@
             <span class="font-mono text-[11px] text-inkfaint mt-0.5">#{{ i + 1 }}</span>
             <img v-if="t.photo_url" :src="t.photo_url" class="w-10 h-10 rounded-lg object-cover cursor-pointer" @click="viewPhoto(t.photo_url)">
             <div>
-              <div class="font-bold text-sm">{{ t.title }}</div>
-              <div v-if="t.status === 'done'" class="text-[11px] text-inkfaint">Selesai {{ formatDateTime(t.completed_at) }}</div>
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-bold text-sm">{{ t.title }}</span>
+                <span v-if="t.source === 'whatsapp'" class="inline-flex items-center text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-1.5 py-0.5 rounded border border-emerald-300" title="Diinput melalui WhatsApp Bot">
+                  📱 WA
+                </span>
+              </div>
+              <div v-if="t.description" class="text-xs text-inkmuted mt-0.5 whitespace-pre-line">{{ t.description }}</div>
+              <div v-if="t.status === 'done'" class="text-[11px] text-inkfaint mt-0.5">Selesai {{ formatDateTime(t.completed_at) }}</div>
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <span class="tag" :class="t.status === 'done' ? 'tag-approved' : 'tag-pending'">{{ t.status === 'done' ? 'Selesai' : 'Belum' }}</span>
+            <span class="tag" :class="statusTagClass(t.status)">{{ statusLabel(t.status) }}</span>
             <button class="btn btn-ghost btn-sm" @click="removeTask(t.id)">Hapus</button>
           </div>
         </div>
@@ -285,6 +291,19 @@ function removeTask(id) {
 function viewPhoto(url) { photoModal.value = url; }
 function formatDateTime(dt) {
   return dt ? new Date(dt).toLocaleString('id-ID') : '';
+}
+
+function statusTagClass(status) {
+  if (status === 'done') return 'tag-approved';
+  if (status === 'in_progress') return 'tag-pending bg-sky-100 text-sky-800 border-sky-300';
+  return 'tag-pending';
+}
+
+function statusLabel(status) {
+  if (status === 'done') return 'Selesai';
+  if (status === 'in_progress') return 'Sedang Dikerjakan';
+  if (status === 'skipped') return 'Dilewati';
+  return 'Belum';
 }
 
 async function exportTasks(format) {

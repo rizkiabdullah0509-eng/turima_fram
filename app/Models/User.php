@@ -15,6 +15,7 @@ class User extends Authenticatable
         'name',
         'username',
         'email',
+        'phone',
         'password',
         'role',
         'position',
@@ -73,5 +74,33 @@ class User extends Authenticatable
     public function tasks()
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function whatsappSession()
+    {
+        return $this->hasOne(WhatsAppSession::class);
+    }
+
+    /**
+     * Normalisasi nomor telepon ke format internasional (misal 6281234567890).
+     */
+    public static function normalizePhoneNumber(?string $number): ?string
+    {
+        if (! $number) {
+            return null;
+        }
+
+        // Hapus karakter non-digit
+        $clean = preg_replace('/[^\d]/', '', $number);
+
+        if (str_starts_with($clean, '08')) {
+            $clean = '628' . substr($clean, 2);
+        } elseif (str_starts_with($clean, '8')) {
+            $clean = '628' . substr($clean, 1);
+        } elseif (str_starts_with($clean, '0')) {
+            $clean = '62' . substr($clean, 1);
+        }
+
+        return $clean ?: null;
     }
 }

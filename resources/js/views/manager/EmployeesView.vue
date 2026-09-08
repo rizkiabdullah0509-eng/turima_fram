@@ -15,6 +15,7 @@
           <tr class="text-[11px] uppercase text-inkmuted border-b-2 border-line">
             <th class="text-left py-2">Nama</th>
             <th class="text-left py-2">Posisi</th>
+            <th class="text-left py-2">No. WhatsApp</th>
             <th class="text-left py-2">Username</th>
             <th class="text-left py-2">Sandi</th>
             <th class="text-left py-2">Akses</th>
@@ -25,6 +26,12 @@
           <tr v-for="e in employees" :key="e.id" class="border-b border-line">
             <td class="py-2 font-bold">{{ e.name }}</td>
             <td class="py-2">{{ e.position }}</td>
+            <td class="py-2">
+              <span v-if="e.phone" class="font-mono text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                {{ e.phone }}
+              </span>
+              <span v-else class="text-xs text-inkfaint italic">-</span>
+            </td>
             <td class="py-2"><span class="font-mono text-[11px] bg-surfacealt px-1.5 py-0.5 rounded">{{ e.username }}</span></td>
             <td class="py-2">
               <span class="font-mono text-xs tracking-wider">••••••••</span>
@@ -78,6 +85,7 @@
         <h3 class="font-display font-bold text-base mb-3">Tambah Karyawan</h3>
         <div class="field mb-2"><label>Nama</label><input v-model="form.name" placeholder="Nama lengkap"></div>
         <div class="field mb-2"><label>Posisi</label><input v-model="form.position" placeholder="Contoh: Kasir"></div>
+        <div class="field mb-2"><label>No. WhatsApp (opsional)</label><input v-model="form.phone" placeholder="Contoh: 081234567890"></div>
         <div class="field mb-2"><label>Maks Jam / Minggu</label><input type="number" v-model="form.max_hours"></div>
         <div class="field mb-2"><label>Username (opsional)</label><input v-model="form.username" placeholder="Contoh: dewi"></div>
         <div class="field mb-3"><label>Kata Sandi (opsional, default 12345)</label><input v-model="form.password" placeholder="12345"></div>
@@ -131,6 +139,11 @@
           <label>Username</label>
           <input v-model="credentialForm.username" autocomplete="username" placeholder="Contoh: andi">
         </div>
+        <div class="field mb-3">
+          <label>No. WhatsApp</label>
+          <input v-model="credentialForm.phone" placeholder="Contoh: 081234567890">
+          <p class="text-[10px] text-inkfaint mt-1">Digunakan untuk bot input tugas harian via WhatsApp.</p>
+        </div>
         <div class="field mb-2">
           <label>Kata Sandi Baru</label>
           <input v-model="credentialForm.password" type="password" autocomplete="new-password" placeholder="Kosongkan jika tidak diubah">
@@ -168,9 +181,9 @@ const editingShift = ref(null); // null = mode tambah, objek = mode edit
 const editingCredentials = ref(null);
 const confirmation = ref(null);
 
-const form = ref({ name: '', position: '', max_hours: 40, username: '', password: '', can_manage_schedule: false });
+const form = ref({ name: '', position: '', phone: '', max_hours: 40, username: '', password: '', can_manage_schedule: false });
 const shiftForm = ref({ name: '', start_time: '08:00', end_time: '16:00', color: 'amber' });
-const credentialForm = ref({ username: '', password: '' });
+const credentialForm = ref({ username: '', password: '', phone: '' });
 
 const previewChipClass = computed(() => ({
   amber: 'bg-[#FBE3B8] text-amberink',
@@ -208,14 +221,14 @@ function closeShiftModal() {
 
 function openEditCredentials(employee) {
   editingCredentials.value = employee;
-  credentialForm.value = { username: employee.username || '', password: '' };
+  credentialForm.value = { username: employee.username || '', password: '', phone: employee.phone || '' };
   showCredentialsModal.value = true;
 }
 
 function closeCredentialsModal() {
   showCredentialsModal.value = false;
   editingCredentials.value = null;
-  credentialForm.value = { username: '', password: '' };
+  credentialForm.value = { username: '', password: '', phone: '' };
 }
 
 async function submitCredentials() {
@@ -224,7 +237,10 @@ async function submitCredentials() {
     return;
   }
 
-  const payload = { username: credentialForm.value.username.trim() };
+  const payload = {
+    username: credentialForm.value.username.trim(),
+    phone: credentialForm.value.phone ? credentialForm.value.phone.trim() : null,
+  };
   if (credentialForm.value.password) {
     payload.password = credentialForm.value.password;
   }
@@ -244,7 +260,7 @@ async function submitEmployee() {
   try {
     await api.post('/employees', form.value);
     showAddEmployee.value = false;
-    form.value = { name: '', position: '', max_hours: 40, username: '', password: '', can_manage_schedule: false };
+    form.value = { name: '', position: '', phone: '', max_hours: 40, username: '', password: '', can_manage_schedule: false };
     await loadAll();
   } catch (e) {
     alert(e.response?.data?.message || 'Gagal menyimpan karyawan.');
