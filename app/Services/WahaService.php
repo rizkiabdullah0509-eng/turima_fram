@@ -29,25 +29,37 @@ class WahaService
         $formattedChatId = $this->formatChatId($chatId);
 
         try {
-            $client = Http::timeout(10)->asJson();
-
-            if ($this->apiKey) {
-                $client->withHeaders(['X-Api-Key' => $this->apiKey]);
-            }
-
-            $response = $client->post("{$this->baseUrl}/api/sendText", [
+            $payload = json_encode([
                 'session' => $this->session,
                 'chatId' => $formattedChatId,
                 'text' => $text,
             ]);
 
-            if ($response->successful()) {
+            $ch = curl_init("{$this->baseUrl}/api/sendText");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            
+            $headers = ['Content-Type: application/json'];
+            if ($this->apiKey) {
+                $headers[] = 'X-Api-Key: ' . $this->apiKey;
+            }
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $err = curl_error($ch);
+            curl_close($ch);
+
+            if ($httpCode >= 200 && $httpCode < 300) {
                 return true;
             }
 
             Log::error('WAHA sendText failed', [
-                'status' => $response->status(),
-                'response' => $response->body(),
+                'status' => $httpCode,
+                'response' => $response,
+                'curl_error' => $err,
                 'chatId' => $formattedChatId,
             ]);
 
@@ -67,14 +79,25 @@ class WahaService
     public function getSessionStatus(): ?array
     {
         try {
-            $client = Http::timeout(5);
+            $ch = curl_init("{$this->baseUrl}/api/sessions/{$this->session}");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            
+            $headers = [];
             if ($this->apiKey) {
-                $client->withHeaders(['X-Api-Key' => $this->apiKey]);
+                $headers[] = 'X-Api-Key: ' . $this->apiKey;
+            }
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode >= 200 && $httpCode < 300 && $response) {
+                return json_decode($response, true);
             }
 
-            $response = $client->get("{$this->baseUrl}/api/sessions/{$this->session}");
-
-            return $response->successful() ? $response->json() : null;
+            return null;
         } catch (\Throwable $e) {
             return null;
         }

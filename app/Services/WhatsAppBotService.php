@@ -100,16 +100,18 @@ class WhatsAppBotService
         // 7. Jika pesan tidak dikenali
         $this->waha->sendMessage(
             $fromChatId,
-            "⚠️ *Perintah Tidak Dikenali*\n\n"
-            . "Untuk mengunggah tugas harian karyawan, ketik nama karyawan dan daftar tugas bernomor, contoh:\n\n"
+            "Halo! Ada yang bisa saya bantu? Perkenalkan saya *Turima Bot* 🤖\n\n"
+            . "📋 *Tugas apa yang perlu saya upload?*\n\n"
+            . "Silakan kirimkan nama karyawan dan daftar tugasnya, contoh:\n\n"
             . "*budi*\n"
             . "1. membersikan rumput\n"
             . "2. ngasah arit\n"
             . "3. mencuci mobil\n\n"
             . "*cici*\n"
             . "1. membersihkan selokan\n"
-            . "2. ngasih makan ayam\n\n"
-            . "Ketik *menu* untuk panduan lengkap atau *karyawan* untuk melihat daftar nama karyawan."
+            . "2. ngasih makan ayam\n"
+            . "3. membuat nasi\n\n"
+            . "Ketik *progres* untuk melihat penyelesaian tugas hari ini atau *karyawan* untuk melihat daftar karyawan."
         );
     }
 
@@ -118,11 +120,9 @@ class WhatsAppBotService
      */
     public function sendHelpMenu(string $fromChatId, User $user): void
     {
-        $roleLabel = $user->isManager() ? 'Manajer' : ($user->isAdmin() ? 'Admin' : 'Pengelola Tugas Tim');
-
-        $message = "Halo *{$user->name}* 👋 ({$roleLabel})\n\n"
-            . "🤖 *Format Input Tugas Harian Tanpa Buka Aplikasi*\n\n"
-            . "Cukup ketik nama karyawan diikuti daftar tugasnya, contoh:\n\n"
+        $message = "Halo! Ada yang bisa saya bantu? Perkenalkan saya *Turima Bot* 🤖\n\n"
+            . "📋 *Tugas apa yang perlu saya upload?*\n\n"
+            . "Silakan kirimkan nama karyawan dan daftar tugasnya, contoh:\n\n"
             . "budi\n"
             . "1. membersikan rumput\n"
             . "2. ngasah arit\n"
