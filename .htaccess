@@ -1,0 +1,14 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Keamanan: Cegah akses langsung ke file sensitif
+    RewriteRule ^\.env - [F,L,NC]
+    RewriteRule ^\.git - [F,L,NC]
+    RewriteRule ^composer\.(json|lock) - [F,L,NC]
+    RewriteRule ^package(-lock)?\.json - [F,L,NC]
+    RewriteRule ^storage/logs/ - [F,L,NC]
+
+    # Otomatis arahkan semua request ke folder public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
