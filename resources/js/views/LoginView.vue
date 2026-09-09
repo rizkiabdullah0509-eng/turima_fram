@@ -2,9 +2,12 @@
   <div class="min-h-screen w-full flex items-center justify-center p-6"
        style="background: radial-gradient(circle at 15% 20%, rgba(111,227,165,0.28), transparent 42%), radial-gradient(circle at 85% 75%, rgba(255,255,255,0.10), transparent 45%), #0E4A2C;">
     <div class="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8">
-      <div class="flex items-center gap-2 mb-6">
-        <div class="w-8 h-8 rounded-lg -rotate-6" style="background: linear-gradient(135deg,#6FE3A5,#1E8449)"></div>
-        <div class="font-display font-bold text-lg">TURIMA FRAM</div>
+      <div class="flex flex-col items-center justify-center text-center mb-6">
+        <div class="w-20 h-20 rounded-2xl bg-surfacealt/80 p-2.5 mb-3 shadow-inner flex items-center justify-center border border-line">
+          <img src="/images/turima-logo.png" alt="Logo TURIMA FARM" class="w-full h-full object-contain" />
+        </div>
+        <div class="font-display font-bold text-xl text-ink tracking-tight">TURIMA FARM</div>
+        <p class="text-xs text-inkmuted mt-0.5">Sistem Penjadwalan Kerja</p>
       </div>
 
       <div class="flex bg-surfacealt rounded-lg p-1 mb-5">

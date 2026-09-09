@@ -5,9 +5,14 @@
   <div v-else class="min-h-screen md:flex">
     <!-- Sidebar -->
     <aside class="hidden w-56 shrink-0 flex-col gap-6 bg-branddark p-4 text-white md:flex">
-      <div class="flex items-center gap-2 px-1">
-        <div class="w-7 h-7 rounded-lg -rotate-6" style="background: linear-gradient(135deg,#6FE3A5,#1E8449)"></div>
-        <div class="font-display font-bold text-base">TURIMA FRAM</div>
+      <div class="flex items-center gap-3 px-1">
+        <div class="w-9 h-9 rounded-xl bg-white p-1 shadow-sm flex items-center justify-center shrink-0 border border-white/20">
+          <img src="/images/turima-logo.png" alt="Logo TURIMA FARM" class="w-full h-full object-contain" />
+        </div>
+        <div class="min-w-0">
+          <div class="font-display font-bold text-base tracking-tight leading-tight text-white">TURIMA FARM</div>
+          <div class="text-[10px] font-medium text-[#6FE3A5] tracking-wider uppercase mt-0.5">Penjadwalan</div>
+        </div>
       </div>
       <nav class="flex flex-col gap-1">
         <router-link
@@ -23,9 +28,14 @@
     <div v-if="mobileMenuOpen" class="fixed inset-0 z-[250] bg-black/45 md:hidden" @click.self="mobileMenuOpen = false">
       <aside class="flex h-full w-72 flex-col gap-6 bg-branddark p-4 text-white shadow-2xl">
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2 px-1">
-            <div class="h-7 w-7 -rotate-6 rounded-lg" style="background: linear-gradient(135deg,#6FE3A5,#1E8449)"></div>
-            <div class="font-display text-base font-bold">TURIMA FRAM</div>
+          <div class="flex items-center gap-3 px-1">
+            <div class="w-9 h-9 rounded-xl bg-white p-1 shadow-sm flex items-center justify-center shrink-0 border border-white/20">
+              <img src="/images/turima-logo.png" alt="Logo TURIMA FARM" class="w-full h-full object-contain" />
+            </div>
+            <div class="min-w-0">
+              <div class="font-display font-bold text-base tracking-tight leading-tight text-white">TURIMA FARM</div>
+              <div class="text-[10px] font-medium text-[#6FE3A5] tracking-wider uppercase mt-0.5">Penjadwalan</div>
+            </div>
           </div>
           <button class="rounded-lg p-2 text-lg hover:bg-white/10" type="button" aria-label="Tutup menu" @click="mobileMenuOpen = false">✕</button>
         </div>
@@ -60,6 +70,7 @@
               <span></span><span></span><span></span>
             </span>
           </button>
+          <img src="/images/turima-logo.png" alt="TURIMA FARM" class="w-8 h-8 rounded-lg bg-surfacealt p-0.5 border border-line object-contain md:hidden shrink-0" />
           <div class="min-w-0">
             <div class="font-display truncate text-lg font-bold">{{ pageTitle }}</div>
             <div class="truncate text-xs text-inkmuted">{{ modeLabel }}</div>
