@@ -111,17 +111,33 @@ class WhatsAppWebhookController extends Controller
     }
 
     /**
-     * Mengambil gambar QR code live dari WAHA.
+     * Mengambil gambar QR code live dari WAHA tanpa melempar error 404 ke browser.
      */
     public function qr()
     {
+        $sessionStatus = $this->wahaService->getSessionStatus();
+        $currStatus = $sessionStatus['status'] ?? 'UNKNOWN';
+
+        if ($currStatus === 'WORKING') {
+            return response()->json([
+                'status' => 'WORKING',
+                'ready' => false,
+                'me' => $sessionStatus['me'] ?? null,
+                'message' => 'Bot WhatsApp sudah terhubung.',
+            ], 200);
+        }
+
         $imageData = $this->wahaService->getQrCodeImage();
 
         if (! $imageData) {
+            $latestStatus = $this->wahaService->getSessionStatus();
+            $statusStr = $latestStatus['status'] ?? 'STARTING';
+
             return response()->json([
-                'status' => 'unavailable',
-                'message' => 'QR Code tidak tersedia atau sesi WhatsApp sudah terhubung.',
-            ], 404);
+                'status' => $statusStr,
+                'ready' => false,
+                'message' => 'QR Code sedang disiapkan oleh server WhatsApp...',
+            ], 200);
         }
 
         return response($imageData, 200, [

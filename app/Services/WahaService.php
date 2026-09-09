@@ -202,7 +202,7 @@ class WahaService
     }
 
     /**
-     * Ambil raw image data PNG QR Code dari WAHA secara instan tanpa blocking loop.
+     * Ambil raw image data PNG QR Code dari WAHA dengan pemulihan cerdas jika sesi restart/starting.
      */
     public function getQrCodeImage(): ?string
     {
@@ -214,28 +214,38 @@ class WahaService
                 return null;
             }
 
-            // Jika status tidak sehat, pulihkan sesi
+            // Jika status tidak sehat, pulihkan sesi dari nol
+            $justReset = false;
             if ($currStatus === 'FAILED' || $currStatus === 'STOPPED' || empty($currStatus)) {
                 $this->resetSessionCompletely();
+                $justReset = true;
             }
 
-            // Ambil QR Code PNG dari endpoint WAHA dengan timeout wajar
-            $ch = curl_init("{$this->baseUrl}/api/{$this->session}/auth/qr");
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+            // Jika baru saja di-reset, berikan waktu engine WAHA menghasilkan QR
+            $maxAttempts = $justReset ? 6 : 2;
 
-            $headers = [];
-            if ($this->apiKey) {
-                $headers[] = 'X-Api-Key: ' . $this->apiKey;
-            }
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+                $ch = curl_init("{$this->baseUrl}/api/{$this->session}/auth/qr");
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 4);
 
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
+                $headers = [];
+                if ($this->apiKey) {
+                    $headers[] = 'X-Api-Key: ' . $this->apiKey;
+                }
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-            if ($httpCode >= 200 && $httpCode < 300 && !empty($response)) {
-                return $response;
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if ($httpCode >= 200 && $httpCode < 300 && !empty($response) && strlen($response) > 300) {
+                    return $response;
+                }
+
+                if ($attempt < $maxAttempts - 1) {
+                    usleep(600000); // 600ms
+                }
             }
 
             return null;

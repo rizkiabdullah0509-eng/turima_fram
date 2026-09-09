@@ -355,16 +355,59 @@ async function fetchQrCode() {
     const response = await api.get('/whatsapp/qr', {
       params: { t: Date.now() },
       responseType: 'blob',
-      timeout: 15000,
+      timeout: 20000,
     });
-    if (qrBlobUrl.value) {
-      URL.revokeObjectURL(qrBlobUrl.value);
+
+    const contentType = response.headers['content-type'] || '';
+    const isJson = contentType.includes('application/json') || response.data?.type?.includes('application/json');
+
+    if (isJson) {
+      const text = await response.data.text();
+      let resJson = {};
+      try {
+        resJson = JSON.parse(text);
+      } catch (e) {}
+
+      if (resJson.status === 'WORKING') {
+        botStatus.value = 'WORKING';
+        botMe.value = resJson.me || null;
+        if (qrBlobUrl.value) {
+          URL.revokeObjectURL(qrBlobUrl.value);
+          qrBlobUrl.value = '';
+        }
+        await checkBotStatus();
+        return;
+      }
+
+      // Sesi masih starting / menyiapkan QR di WAHA, otomatis polling lagi
+      if (showBotModal.value && botStatus.value !== 'WORKING') {
+        setTimeout(() => {
+          if (showBotModal.value && botStatus.value !== 'WORKING') {
+            fetchQrCode();
+          }
+        }, 1500);
+      }
+      return;
     }
-    qrBlobUrl.value = URL.createObjectURL(response.data);
-    await checkBotStatus();
+
+    // Response adalah gambar PNG QR Code valid
+    if (response.data && response.data.size > 200) {
+      if (qrBlobUrl.value) {
+        URL.revokeObjectURL(qrBlobUrl.value);
+      }
+      qrBlobUrl.value = URL.createObjectURL(response.data);
+      qrError.value = false;
+      await checkBotStatus();
+    }
   } catch (err) {
-    if (botStatus.value !== 'WORKING') {
-      console.warn('Failed to load QR blob:', err?.message || err);
+    console.warn('Failed to load QR blob:', err?.message || err);
+    if (showBotModal.value && botStatus.value !== 'WORKING') {
+      setTimeout(() => {
+        if (showBotModal.value && botStatus.value !== 'WORKING') {
+          fetchQrCode();
+        }
+      }, 2000);
+    } else {
       qrError.value = true;
     }
   } finally {
@@ -375,9 +418,17 @@ async function fetchQrCode() {
 async function handleRestartBot() {
   if (loadingBotAction.value) return;
   loadingBotAction.value = true;
+  qrLoading.value = true;
+  qrError.value = false;
+  if (qrBlobUrl.value) {
+    URL.revokeObjectURL(qrBlobUrl.value);
+    qrBlobUrl.value = '';
+  }
   try {
     await api.post('/whatsapp/restart');
-    await fetchQrCode();
+    setTimeout(() => {
+      fetchQrCode();
+    }, 1000);
     if (botPollTimer) clearInterval(botPollTimer);
     botPollTimer = setInterval(async () => {
       if (!showBotModal.value || botStatus.value === 'WORKING') {
