@@ -254,7 +254,23 @@ cici
           </div>
         </div>
 
-        <!-- Jika status SCAN_QR_CODE atau FAILED/STOPPED/STARTING -->
+        <!-- Jika status OFFLINE (Server WAHA port 3005 mati / belum dinyalakan) -->
+        <div v-else-if="botStatus === 'OFFLINE'" class="p-4 rounded-xl bg-amber-50 border border-amber-300 text-center my-4">
+          <div class="text-3xl mb-2">⚠️</div>
+          <div class="font-bold text-amber-900 text-sm">Server WhatsApp Bot Belum Aktif</div>
+          <p class="text-xs text-amber-800 mt-2 leading-relaxed text-left bg-white/60 p-2.5 rounded-lg border border-amber-200">
+            Server WAHA (WhatsApp Gateway) di port 3005 belum berjalan.<br>
+            • <b>Di Laptop (Lokal)</b>: Klik/jalankan file <code>start-waha.bat</code> atau jalankan perintah <code>docker compose -f docker-compose.waha.yml up -d</code>.<br>
+            • <b>Di Server VPS</b>: Jalankan script <code>bash deploy.sh</code> untuk mengaktifkan Docker WAHA.
+          </p>
+          <div class="mt-4 flex justify-center gap-2">
+            <button class="btn btn-sm bg-amber-700 hover:bg-amber-800 text-white text-xs" @click="openBotModal">
+              🔄 Cek Koneksi Ulang
+            </button>
+          </div>
+        </div>
+
+        <!-- Jika status SCAN_QR_CODE atau STARTING -->
         <div v-else class="text-center my-4">
           <div v-if="qrLoading" class="w-64 h-64 mx-auto rounded-xl bg-surfacealt border border-line flex flex-col items-center justify-center text-xs text-inkmuted p-4">
             <div class="animate-spin text-3xl mb-3">⏳</div>
@@ -264,9 +280,9 @@ cici
 
           <div v-else-if="qrError" class="w-64 h-64 mx-auto rounded-xl bg-rose-50 border border-rose-200 flex flex-col items-center justify-center text-xs text-rose-700 p-4">
             <div class="text-3xl mb-2">⚠️</div>
-            <span class="font-bold text-rose-900">QR Code Sedang Disiapkan</span>
-            <p class="text-[11px] text-rose-700 mt-1 mb-3 text-center">Sesi bot sedang di-restart untuk membersihkan status lama.</p>
-            <button class="btn btn-sm bg-rose-600 hover:bg-rose-700 text-white text-xs" @click="fetchQrCode">
+            <span class="font-bold text-rose-900">Gagal Memuat QR Code</span>
+            <p class="text-[11px] text-rose-700 mt-1 mb-3 text-center">{{ qrErrorMessage || 'Sesi bot belum siap atau mengalami gangguan.' }}</p>
+            <button class="btn btn-sm bg-rose-600 hover:bg-rose-700 text-white text-xs" @click="fetchQrCode(true)">
               🔄 Coba Muat Ulang
             </button>
           </div>
@@ -276,7 +292,7 @@ cici
           </div>
 
           <div v-else class="w-64 h-64 mx-auto rounded-xl bg-surfacealt border border-line flex flex-col items-center justify-center text-xs text-inkmuted p-4">
-            <button class="btn btn-sm bg-primary text-white" @click="fetchQrCode">
+            <button class="btn btn-sm bg-primary text-white" @click="fetchQrCode(true)">
               📷 Tampilkan QR Code
             </button>
           </div>
@@ -322,14 +338,17 @@ const botMe = ref(null);
 const qrBlobUrl = ref('');
 const qrLoading = ref(false);
 const qrError = ref(false);
+const qrErrorMessage = ref('');
 const loadingBotAction = ref(false);
 let botPollTimer = null;
+let qrRetryCount = 0;
 
 async function checkBotStatus() {
   try {
     const { data } = await api.get('/whatsapp/status');
-    botStatus.value = data?.waha?.status || '';
-    botMe.value = data?.waha?.me || null;
+    const waha = data?.waha;
+    botStatus.value = waha?.status || (data?.online ? 'UNKNOWN' : 'OFFLINE');
+    botMe.value = waha?.me || null;
 
     if (botStatus.value === 'WORKING') {
       if (qrBlobUrl.value) {
@@ -342,20 +361,24 @@ async function checkBotStatus() {
       }
     }
   } catch (e) {
-    botStatus.value = 'ERROR';
+    botStatus.value = 'OFFLINE';
   }
 }
 
-async function fetchQrCode() {
+async function fetchQrCode(resetCounter = true) {
+  if (resetCounter) qrRetryCount = 0;
   if (botStatus.value === 'WORKING') return;
-  if (qrLoading.value) return;
+  if (qrLoading.value && !resetCounter) return;
+
   qrLoading.value = true;
   qrError.value = false;
+  qrErrorMessage.value = '';
+
   try {
     const response = await api.get('/whatsapp/qr', {
       params: { t: Date.now() },
       responseType: 'blob',
-      timeout: 20000,
+      timeout: 10000,
     });
 
     const contentType = response.headers['content-type'] || '';
@@ -368,6 +391,12 @@ async function fetchQrCode() {
         resJson = JSON.parse(text);
       } catch (e) {}
 
+      if (resJson.status === 'OFFLINE') {
+        botStatus.value = 'OFFLINE';
+        qrLoading.value = false;
+        return;
+      }
+
       if (resJson.status === 'WORKING') {
         botStatus.value = 'WORKING';
         botMe.value = resJson.me || null;
@@ -375,17 +404,23 @@ async function fetchQrCode() {
           URL.revokeObjectURL(qrBlobUrl.value);
           qrBlobUrl.value = '';
         }
-        await checkBotStatus();
+        qrLoading.value = false;
         return;
       }
 
-      // Sesi masih starting / menyiapkan QR di WAHA, otomatis polling lagi
-      if (showBotModal.value && botStatus.value !== 'WORKING') {
+      // Status 'STARTING' / belum siap
+      botStatus.value = resJson.status || 'STARTING';
+      qrRetryCount++;
+      if (qrRetryCount < 5 && showBotModal.value) {
         setTimeout(() => {
-          if (showBotModal.value && botStatus.value !== 'WORKING') {
-            fetchQrCode();
+          if (showBotModal.value && botStatus.value !== 'WORKING' && botStatus.value !== 'OFFLINE') {
+            fetchQrCode(false);
           }
-        }, 1500);
+        }, 2000);
+      } else {
+        qrLoading.value = false;
+        qrError.value = true;
+        qrErrorMessage.value = resJson.message || 'QR Code sedang disiapkan oleh WAHA... Silakan klik Muat Ulang.';
       }
       return;
     }
@@ -396,20 +431,18 @@ async function fetchQrCode() {
         URL.revokeObjectURL(qrBlobUrl.value);
       }
       qrBlobUrl.value = URL.createObjectURL(response.data);
+      botStatus.value = 'SCAN_QR_CODE';
       qrError.value = false;
+      qrLoading.value = false;
       await checkBotStatus();
+    } else {
+      qrError.value = true;
+      qrErrorMessage.value = 'Ukuran gambar QR Code tidak valid.';
     }
   } catch (err) {
     console.warn('Failed to load QR blob:', err?.message || err);
-    if (showBotModal.value && botStatus.value !== 'WORKING') {
-      setTimeout(() => {
-        if (showBotModal.value && botStatus.value !== 'WORKING') {
-          fetchQrCode();
-        }
-      }, 2000);
-    } else {
-      qrError.value = true;
-    }
+    qrError.value = true;
+    qrErrorMessage.value = 'Gagal me-load QR Code. Pastikan server WAHA di port 3005 aktif.';
   } finally {
     qrLoading.value = false;
   }
@@ -427,11 +460,12 @@ async function handleRestartBot() {
   try {
     await api.post('/whatsapp/restart');
     setTimeout(() => {
-      fetchQrCode();
-    }, 1000);
+      fetchQrCode(true);
+    }, 1500);
+
     if (botPollTimer) clearInterval(botPollTimer);
     botPollTimer = setInterval(async () => {
-      if (!showBotModal.value || botStatus.value === 'WORKING') {
+      if (!showBotModal.value || botStatus.value === 'WORKING' || botStatus.value === 'OFFLINE') {
         if (botPollTimer) {
           clearInterval(botPollTimer);
           botPollTimer = null;
@@ -450,11 +484,11 @@ async function handleRestartBot() {
 async function openBotModal() {
   showBotModal.value = true;
   await checkBotStatus();
-  if (botStatus.value !== 'WORKING') {
-    fetchQrCode();
+  if (botStatus.value !== 'WORKING' && botStatus.value !== 'OFFLINE') {
+    fetchQrCode(true);
     if (botPollTimer) clearInterval(botPollTimer);
     botPollTimer = setInterval(async () => {
-      if (!showBotModal.value || botStatus.value === 'WORKING') {
+      if (!showBotModal.value || botStatus.value === 'WORKING' || botStatus.value === 'OFFLINE') {
         if (botPollTimer) {
           clearInterval(botPollTimer);
           botPollTimer = null;

@@ -89,7 +89,10 @@ class WhatsAppWebhookController extends Controller
     public function status()
     {
         $sessionStatus = $this->wahaService->getSessionStatus();
+        $statusStr = $sessionStatus['status'] ?? 'OFFLINE';
+
         return response()->json([
+            'online' => $statusStr !== 'OFFLINE',
             'waha' => $sessionStatus,
             'configured_url' => config('waha.url'),
             'session_name' => config('waha.session'),
@@ -116,7 +119,15 @@ class WhatsAppWebhookController extends Controller
     public function qr()
     {
         $sessionStatus = $this->wahaService->getSessionStatus();
-        $currStatus = $sessionStatus['status'] ?? 'UNKNOWN';
+        $currStatus = $sessionStatus['status'] ?? 'OFFLINE';
+
+        if ($currStatus === 'OFFLINE') {
+            return response()->json([
+                'status' => 'OFFLINE',
+                'ready' => false,
+                'message' => 'Server WAHA (WhatsApp Gateway) di port 3005 tidak aktif atau tidak dapat dihubungi.',
+            ], 200);
+        }
 
         if ($currStatus === 'WORKING') {
             return response()->json([

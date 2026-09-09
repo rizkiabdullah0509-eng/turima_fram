@@ -74,15 +74,46 @@ class WahaService
     }
 
     /**
+     * Cek apakah server WAHA di port 3005 aktif dan dapat dihubungi secara cepat.
+     */
+    public function isWahaOnline(): bool
+    {
+        try {
+            $ch = curl_init("{$this->baseUrl}/api/sessions");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1);
+            if ($this->apiKey) {
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['X-Api-Key: ' . $this->apiKey]);
+            }
+            curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            return $code >= 200 && $code < 500;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
      * Cek status sesi WhatsApp di WAHA.
      */
     public function getSessionStatus(): ?array
     {
+        if (! $this->isWahaOnline()) {
+            return [
+                'status' => 'OFFLINE',
+                'message' => 'Server WAHA (WhatsApp Gateway) di port 3005 tidak aktif atau belum dinyalakan.',
+            ];
+        }
+
         try {
             $ch = curl_init("{$this->baseUrl}/api/sessions/{$this->session}");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            
+            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+
             $headers = [];
             if ($this->apiKey) {
                 $headers[] = 'X-Api-Key: ' . $this->apiKey;
@@ -94,25 +125,37 @@ class WahaService
             curl_close($ch);
 
             if ($httpCode >= 200 && $httpCode < 300 && $response) {
-                return json_decode($response, true);
+                $data = json_decode($response, true);
+                if (is_array($data)) {
+                    return $data;
+                }
             }
 
-            return null;
+            if ($httpCode === 404) {
+                return ['status' => 'STOPPED', 'name' => $this->session];
+            }
+
+            return ['status' => 'UNKNOWN', 'name' => $this->session];
         } catch (\Throwable $e) {
-            return null;
+            return ['status' => 'OFFLINE', 'message' => $e->getMessage()];
         }
     }
 
     /**
-     * Restart sesi WAHA. Jika gagal atau status FAILED, lakukan reset penuh.
+     * Restart sesi WAHA. Jika gagal, buat sesi baru dari nol.
      */
     public function restartSession(): bool
     {
+        if (! $this->isWahaOnline()) {
+            return false;
+        }
+
         try {
             $ch = curl_init("{$this->baseUrl}/api/sessions/{$this->session}/restart");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
 
             $headers = [];
             if ($this->apiKey) {
@@ -128,7 +171,6 @@ class WahaService
                 return true;
             }
 
-            // Jika restart gagal atau sesi 404, lakukan reset total
             return $this->resetSessionCompletely();
         } catch (\Throwable $e) {
             Log::error('WAHA restartSession exception: ' . $e->getMessage());
@@ -141,11 +183,16 @@ class WahaService
      */
     public function resetSessionCompletely(): bool
     {
+        if (! $this->isWahaOnline()) {
+            return false;
+        }
+
         try {
             $chDel = curl_init("{$this->baseUrl}/api/sessions/{$this->session}");
             curl_setopt($chDel, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($chDel, CURLOPT_CUSTOMREQUEST, 'DELETE');
-            curl_setopt($chDel, CURLOPT_TIMEOUT, 4);
+            curl_setopt($chDel, CURLOPT_TIMEOUT, 3);
+            curl_setopt($chDel, CURLOPT_CONNECTTIMEOUT, 2);
 
             $headers = [];
             if ($this->apiKey) {
@@ -167,6 +214,10 @@ class WahaService
      */
     public function createAndStartSession(): bool
     {
+        if (! $this->isWahaOnline()) {
+            return false;
+        }
+
         try {
             $payload = json_encode([
                 'name' => $this->session,
@@ -185,6 +236,7 @@ class WahaService
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
             curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
             $headers = ['Content-Type: application/json'];
             if ($this->apiKey) {
                 $headers[] = 'X-Api-Key: ' . $this->apiKey;
@@ -202,50 +254,42 @@ class WahaService
     }
 
     /**
-     * Ambil raw image data PNG QR Code dari WAHA dengan pemulihan cerdas jika sesi restart/starting.
+     * Ambil raw image data PNG QR Code dari WAHA secara efisien tanpa blocking lama.
      */
     public function getQrCodeImage(): ?string
     {
+        $statusInfo = $this->getSessionStatus();
+        $currStatus = $statusInfo['status'] ?? 'OFFLINE';
+
+        if ($currStatus === 'OFFLINE' || $currStatus === 'WORKING') {
+            return null;
+        }
+
+        // Jika sesi tidak ada atau STOPPED, aktifkan sesi tanpa menghapus total
+        if ($currStatus === 'STOPPED' || $currStatus === '404' || $currStatus === 'UNKNOWN') {
+            $this->createAndStartSession();
+        } elseif ($currStatus === 'FAILED') {
+            $this->resetSessionCompletely();
+        }
+
         try {
-            $status = $this->getSessionStatus();
-            $currStatus = $status['status'] ?? null;
+            $ch = curl_init("{$this->baseUrl}/api/{$this->session}/auth/qr");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
 
-            if ($currStatus === 'WORKING') {
-                return null;
+            $headers = [];
+            if ($this->apiKey) {
+                $headers[] = 'X-Api-Key: ' . $this->apiKey;
             }
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-            // Jika status tidak sehat, pulihkan sesi dari nol
-            $justReset = false;
-            if ($currStatus === 'FAILED' || $currStatus === 'STOPPED' || empty($currStatus)) {
-                $this->resetSessionCompletely();
-                $justReset = true;
-            }
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
 
-            // Jika baru saja di-reset, berikan waktu engine WAHA menghasilkan QR
-            $maxAttempts = $justReset ? 6 : 2;
-
-            for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
-                $ch = curl_init("{$this->baseUrl}/api/{$this->session}/auth/qr");
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_TIMEOUT, 4);
-
-                $headers = [];
-                if ($this->apiKey) {
-                    $headers[] = 'X-Api-Key: ' . $this->apiKey;
-                }
-                curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-
-                $response = curl_exec($ch);
-                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                curl_close($ch);
-
-                if ($httpCode >= 200 && $httpCode < 300 && !empty($response) && strlen($response) > 300) {
-                    return $response;
-                }
-
-                if ($attempt < $maxAttempts - 1) {
-                    usleep(600000); // 600ms
-                }
+            if ($httpCode >= 200 && $httpCode < 300 && ! empty($response) && strlen($response) > 200) {
+                return $response;
             }
 
             return null;
