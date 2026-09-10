@@ -29,9 +29,7 @@ class AuthController extends Controller
             ]);
         }
 
-        // Hapus token lama supaya tidak menumpuk (opsional)
-        $user->tokens()->delete();
-
+        // Token dibuat tanpa expired date agar karyawan tetap login selamanya (unlimited)
         $token = $user->createToken('turima-fram')->plainTextToken;
 
         return response()->json([
