@@ -315,6 +315,7 @@ async function geocodeCoordinates(lat, lng) {
   if (lastGeocodedKey === key) return;
   lastGeocodedKey = key;
 
+  // Fallback 1: Nominatim OpenStreetMap
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
@@ -324,7 +325,7 @@ async function geocodeCoordinates(lat, lng) {
       const data = await res.json();
       if (data && data.address) {
         const addr = data.address;
-        const desa = addr.village || addr.suburb || addr.neighbourhood || addr.quarter || addr.hamlet || '';
+        const desa = addr.village || addr.suburb || addr.neighbourhood || addr.quarter || addr.hamlet || addr.residential || '';
         const kecamatan = addr.city_district || addr.district || addr.subdistrict || addr.municipality || '';
         const kabupaten = addr.city || addr.regency || addr.county || addr.town || '';
 
@@ -340,47 +341,116 @@ async function geocodeCoordinates(lat, lng) {
         ].filter(Boolean);
 
         location.value.name = parts.join(', ') || data.display_name;
+        return;
       }
     }
   } catch (e) {
-    if (!location.value.name) {
-      location.value.name = `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+    console.warn('Nominatim reverse geocode failed, trying BigDataCloud...', e);
+  }
+
+  // Fallback 2: BigDataCloud Reverse Geocoding Client API (Free, CORS-friendly, no rate limits for mobile)
+  try {
+    const res = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data) {
+        const desa = data.locality || data.localityInfo?.informative?.find(i => i.order === 4)?.name || '';
+        const kecamatan = data.localityInfo?.administrative?.find(i => i.adminLevel === 6 || i.order === 3)?.name || '';
+        const kabupaten = data.city || data.principalSubdivision || '';
+
+        if (desa) location.value.desa = desa;
+        if (kecamatan) location.value.kecamatan = kecamatan;
+        if (kabupaten) location.value.kabupaten = kabupaten;
+
+        const parts = [
+          desa ? `Desa/Kel. ${desa}` : '',
+          kecamatan ? `Kec. ${kecamatan}` : '',
+          kabupaten,
+        ].filter(Boolean);
+
+        const addrStr = data.localityInfo?.informative?.map(i => i.name).filter(Boolean).join(', ') || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        location.value.address = addrStr;
+        location.value.name = parts.join(', ') || addrStr;
+        return;
+      }
     }
+  } catch (e) {
+    console.warn('BigDataCloud reverse geocode failed...', e);
+  }
+
+  // Fallback 3: Koordinat GPS Asli jika jaringan internet lambat/offline
+  if (!location.value.name) {
+    location.value.name = `Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}`;
+    location.value.address = `Koordinat GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   }
 }
 
 function startLocationWatch() {
   stopLocationWatch();
+
   if (!navigator.geolocation) {
-    location.value.error = 'Browser atau perangkat tidak mendukung GPS geolokasi.';
+    location.value.error = 'Browser HP atau perangkat Anda tidak mendukung fitur lokasi (GPS).';
     return;
   }
+
+  // Cek apakah diakses via HTTPS (diperlukan oleh Chrome Android / Safari iOS)
+  if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    location.value.error = 'Akses lokasi di HP membutuhkan koneksi HTTPS aman (https://turima.my.id). Pastikan URL diawali https://';
+    return;
+  }
+
   location.value.loading = true;
   location.value.error = null;
 
-  // Permintaan cepat awal
+  const highAccuracyOptions = { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 };
+  const lowAccuracyOptions = { enableHighAccuracy: false, timeout: 12000, maximumAge: 10000 };
+
+  function handleGeoError(err) {
+    if (location.value.lat != null) {
+      location.value.loading = false;
+      return;
+    }
+    location.value.loading = false;
+    if (err.code === err.PERMISSION_DENIED) {
+      location.value.error = 'Izin lokasi (GPS) ditolak. Mohon aktifkan izin lokasi/GPS di browser HP Anda.';
+    } else if (err.code === err.POSITION_UNAVAILABLE) {
+      location.value.error = 'Sinyal GPS tidak terdeteksi. Aktifkan GPS/Lokasi HP Anda lalu coba lagi.';
+    } else if (err.code === err.TIMEOUT) {
+      location.value.error = 'Waktu deteksi GPS habis. Tekan "Perbarui GPS" untuk mencoba lagi.';
+    } else {
+      location.value.error = 'Gagal mengambil koordinat GPS dari HP.';
+    }
+  }
+
+  // Percobaan 1: High Accuracy GPS (Hardware)
   navigator.geolocation.getCurrentPosition(
     (pos) => handlePosition(pos),
-    () => {},
-    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    (err) => {
+      // Jika High Accuracy gagal / time out di HP (misal indoor), fallback ke Low Accuracy (Network/Cellular)
+      if (err.code === err.TIMEOUT || err.code === err.POSITION_UNAVAILABLE) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => handlePosition(pos),
+          (err2) => handleGeoError(err2),
+          lowAccuracyOptions
+        );
+      } else {
+        handleGeoError(err);
+      }
+    },
+    highAccuracyOptions
   );
 
-  // Pantau GPS terus-menerus hingga akurasi terbaik terkunci
+  // Pantau GPS terus-menerus
   watchId = navigator.geolocation.watchPosition(
     (pos) => handlePosition(pos),
     (err) => {
-      location.value.loading = false;
-      if (err.code === err.PERMISSION_DENIED) {
-        location.value.error = 'Izin lokasi (GPS) belum diizinkan. Mohon aktifkan izin lokasi di browser.';
-      } else if (err.code === err.POSITION_UNAVAILABLE) {
-        location.value.error = 'Sinyal GPS lokasi tidak terdeteksi.';
-      } else if (err.code === err.TIMEOUT) {
-        location.value.error = 'Waktu deteksi GPS habis. Silakan coba kalibrasi ulang.';
-      } else {
-        location.value.error = 'Gagal mendeteksi koordinat GPS.';
+      if (location.value.lat == null) {
+        handleGeoError(err);
       }
     },
-    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    highAccuracyOptions
   );
 }
 

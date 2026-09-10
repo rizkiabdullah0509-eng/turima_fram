@@ -70,14 +70,14 @@
                         <span class="text-[9px] font-semibold text-tealink">Foto & Maps</span>
                       </button>
                     </div>
-                    <!-- Info Lokasi Masuk (Desa, Kecamatan, Kabupaten) -->
+                    <!-- Info Lokasi Masuk (Desa, Kecamatan, Kabupaten / Formatted) -->
                     <div
-                      v-if="attOn(d).clock_in_desa || attOn(d).clock_in_kecamatan || attOn(d).clock_in_kabupaten"
+                      v-if="attOn(d).clock_in_formatted_address || attOn(d).clock_in_location_name || attOn(d).clock_in_desa || attOn(d).clock_in_kecamatan || attOn(d).clock_in_kabupaten || attOn(d).clock_in_lat"
                       class="text-[9px] text-tealink leading-tight truncate mt-0.5 flex items-center gap-0.5"
-                      :title="attOn(d).clock_in_address || [attOn(d).clock_in_desa, attOn(d).clock_in_kecamatan, attOn(d).clock_in_kabupaten].filter(Boolean).join(', ')"
+                      :title="attOn(d).clock_in_address || attOn(d).clock_in_formatted_address || attOn(d).clock_in_location_name"
                     >
                       <span>📍</span>
-                      <span class="truncate">{{ [attOn(d).clock_in_desa, attOn(d).clock_in_kecamatan].filter(Boolean).join(', ') || attOn(d).clock_in_kabupaten }}</span>
+                      <span class="truncate">{{ attOn(d).clock_in_formatted_address || attOn(d).clock_in_location_name || [attOn(d).clock_in_desa, attOn(d).clock_in_kecamatan].filter(Boolean).join(', ') || attOn(d).clock_in_kabupaten || (attOn(d).clock_in_lat ? `${attOn(d).clock_in_lat.toFixed(4)}, ${attOn(d).clock_in_lng.toFixed(4)}` : '') }}</span>
                     </div>
                   </div>
 
@@ -107,14 +107,14 @@
                         <span class="text-[9px] font-semibold text-coralink">Foto & Maps</span>
                       </button>
                     </div>
-                    <!-- Info Lokasi Pulang (Desa, Kecamatan, Kabupaten) -->
+                    <!-- Info Lokasi Pulang (Desa, Kecamatan, Kabupaten / Formatted) -->
                     <div
-                      v-if="attOn(d).clock_out_desa || attOn(d).clock_out_kecamatan || attOn(d).clock_out_kabupaten"
+                      v-if="attOn(d).clock_out_formatted_address || attOn(d).clock_out_location_name || attOn(d).clock_out_desa || attOn(d).clock_out_kecamatan || attOn(d).clock_out_kabupaten || attOn(d).clock_out_lat"
                       class="text-[9px] text-coralink leading-tight truncate mt-0.5 flex items-center gap-0.5"
-                      :title="attOn(d).clock_out_address || [attOn(d).clock_out_desa, attOn(d).clock_out_kecamatan, attOn(d).clock_out_kabupaten].filter(Boolean).join(', ')"
+                      :title="attOn(d).clock_out_address || attOn(d).clock_out_formatted_address || attOn(d).clock_out_location_name"
                     >
                       <span>📍</span>
-                      <span class="truncate">{{ [attOn(d).clock_out_desa, attOn(d).clock_out_kecamatan].filter(Boolean).join(', ') || attOn(d).clock_out_kabupaten }}</span>
+                      <span class="truncate">{{ attOn(d).clock_out_formatted_address || attOn(d).clock_out_location_name || [attOn(d).clock_out_desa, attOn(d).clock_out_kecamatan].filter(Boolean).join(', ') || attOn(d).clock_out_kabupaten || (attOn(d).clock_out_lat ? `${attOn(d).clock_out_lat.toFixed(4)}, ${attOn(d).clock_out_lng.toFixed(4)}` : '') }}</span>
                     </div>
                   </div>
                 </div>
