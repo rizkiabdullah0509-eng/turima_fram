@@ -21,7 +21,133 @@
       Cek kembali nanti, atau lihat minggu lain menggunakan tombol panah di atas.
     </div>
 
-    <div v-else class="card overflow-x-auto">
+    <!-- ====== TAMPILAN RESPONSIF ====== -->
+    <template v-else>
+
+    <!-- Kartu per hari (HP / Mobile: < sm) -->
+    <div class="block sm:hidden space-y-3">
+      <div
+        v-for="(d, i) in days"
+        :key="i"
+        class="card p-3"
+        :class="iso(d) === today ? 'ring-2 ring-teal/40' : ''"
+      >
+        <!-- Header hari -->
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <div
+              class="w-9 h-9 rounded-lg flex flex-col items-center justify-center text-center leading-none font-bold"
+              :class="iso(d) === today ? 'bg-teal text-white' : 'bg-surfacealt text-ink'"
+            >
+              <span class="text-[10px] font-semibold">{{ dayNames[i].slice(0,3) }}</span>
+              <span class="text-[15px] leading-tight">{{ d.getDate() }}</span>
+            </div>
+            <div>
+              <div class="font-bold text-[13px] text-ink">{{ dayNames[i] }}</div>
+              <div class="text-[11px] text-inkfaint font-mono">{{ formatDay(d) }}</div>
+            </div>
+          </div>
+          <span v-if="iso(d) === today" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal/15 text-tealink">Hari Ini</span>
+        </div>
+
+        <!-- Isi: cuti / libur / shift -->
+        <div v-if="leaveOn(d)" class="bg-[#F6D9D3] text-coralink text-[11px] font-bold rounded-lg px-3 py-2 text-center mb-2">🏖 Cuti</div>
+        <template v-else>
+          <div v-if="scheduleOn(d)" class="rounded-lg px-3 py-2 text-[11px] font-semibold mb-2" :class="chipClass(scheduleOn(d).shift_template.color)">
+            {{ scheduleOn(d).shift_template.name }}
+            <span class="font-mono text-[10px] opacity-70 ml-1">{{ scheduleOn(d).shift_template.start_time.slice(0,5) }}–{{ scheduleOn(d).shift_template.end_time.slice(0,5) }}</span>
+          </div>
+          <div v-else class="text-inkfaint text-[11px] text-center py-1 mb-2">Libur</div>
+
+          <!-- Bukti absensi -->
+          <div v-if="attOn(d)" class="space-y-1.5">
+            <!-- Absen Masuk -->
+            <div v-if="attOn(d).clock_in" class="rounded-lg border border-teal/20 bg-[#CDEAE2]/20 p-2">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-bold text-tealink">✅ Absen Masuk</span>
+                <span class="font-mono text-[10px] text-inkmuted">{{ formatTime(attOn(d).clock_in) }}</span>
+              </div>
+              <button
+                v-if="attOn(d).clock_in_photo_url"
+                type="button"
+                class="w-full flex items-center gap-2 rounded-lg border border-teal/30 bg-white px-2 py-1.5 hover:border-teal active:bg-[#CDEAE2]/30 transition-colors"
+                @click="openAttendancePhoto({
+                  url: attOn(d).clock_in_photo_url,
+                  time: formatTime(attOn(d).clock_in),
+                  lat: attOn(d).clock_in_lat,
+                  lng: attOn(d).clock_in_lng,
+                  desa: attOn(d).clock_in_desa,
+                  kecamatan: attOn(d).clock_in_kecamatan,
+                  kabupaten: attOn(d).clock_in_kabupaten,
+                  address: attOn(d).clock_in_address,
+                  location_name: attOn(d).clock_in_location_name,
+                  maps_url: attOn(d).clock_in_maps_url,
+                }, 'Absen Masuk', d)"
+              >
+                <img :src="attOn(d).clock_in_photo_url" alt="Foto Masuk" class="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-teal/30">
+                <div class="flex-1 min-w-0 text-left">
+                  <div class="text-[10px] font-bold text-tealink">📷 Lihat Foto & Peta</div>
+                  <div
+                    v-if="attOn(d).clock_in_formatted_address || attOn(d).clock_in_location_name || attOn(d).clock_in_desa || attOn(d).clock_in_lat"
+                    class="text-[9px] text-inkfaint truncate"
+                  >
+                    📍 {{ attOn(d).clock_in_formatted_address || attOn(d).clock_in_location_name || [attOn(d).clock_in_desa, attOn(d).clock_in_kecamatan].filter(Boolean).join(', ') || attOn(d).clock_in_kabupaten || (attOn(d).clock_in_lat ? `${attOn(d).clock_in_lat.toFixed(4)}, ${attOn(d).clock_in_lng.toFixed(4)}` : '') }}
+                  </div>
+                </div>
+                <span class="text-teal text-sm flex-shrink-0">›</span>
+              </button>
+            </div>
+
+            <!-- Absen Pulang -->
+            <div v-if="attOn(d).clock_out" class="rounded-lg border border-coral/20 bg-[#F6D9D3]/20 p-2">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[10px] font-bold text-coralink">🏁 Absen Pulang</span>
+                <span class="font-mono text-[10px] text-inkmuted">{{ formatTime(attOn(d).clock_out) }}</span>
+              </div>
+              <button
+                v-if="attOn(d).clock_out_photo_url"
+                type="button"
+                class="w-full flex items-center gap-2 rounded-lg border border-coral/30 bg-white px-2 py-1.5 hover:border-coral active:bg-[#F6D9D3]/30 transition-colors"
+                @click="openAttendancePhoto({
+                  url: attOn(d).clock_out_photo_url,
+                  time: formatTime(attOn(d).clock_out),
+                  lat: attOn(d).clock_out_lat,
+                  lng: attOn(d).clock_out_lng,
+                  desa: attOn(d).clock_out_desa,
+                  kecamatan: attOn(d).clock_out_kecamatan,
+                  kabupaten: attOn(d).clock_out_kabupaten,
+                  address: attOn(d).clock_out_address,
+                  location_name: attOn(d).clock_out_location_name,
+                  maps_url: attOn(d).clock_out_maps_url,
+                }, 'Absen Pulang', d)"
+              >
+                <img :src="attOn(d).clock_out_photo_url" alt="Foto Pulang" class="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-coral/30">
+                <div class="flex-1 min-w-0 text-left">
+                  <div class="text-[10px] font-bold text-coralink">📷 Lihat Foto & Peta</div>
+                  <div
+                    v-if="attOn(d).clock_out_formatted_address || attOn(d).clock_out_location_name || attOn(d).clock_out_desa || attOn(d).clock_out_lat"
+                    class="text-[9px] text-inkfaint truncate"
+                  >
+                    📍 {{ attOn(d).clock_out_formatted_address || attOn(d).clock_out_location_name || [attOn(d).clock_out_desa, attOn(d).clock_out_kecamatan].filter(Boolean).join(', ') || attOn(d).clock_out_kabupaten || (attOn(d).clock_out_lat ? `${attOn(d).clock_out_lat.toFixed(4)}, ${attOn(d).clock_out_lng.toFixed(4)}` : '') }}
+                  </div>
+                </div>
+                <span class="text-coral text-sm flex-shrink-0">›</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tombol Absen Hari Ini -->
+          <div v-if="scheduleOn(d) && iso(d) === today" class="mt-2">
+            <button v-if="!attOn(d)?.clock_in && !isClockInClosed(d)" class="btn btn-teal w-full justify-center" @click="openPhoto('in', d)">📷 Absen Masuk</button>
+            <button v-else-if="!attOn(d)?.clock_out" class="btn btn-coral w-full justify-center" @click="openPhoto('out', d)">📷 Absen Pulang</button>
+            <div v-else class="text-center text-[11px] text-inkfaint font-mono mt-1">✓ Absensi Selesai</div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Tabel (Desktop / Tablet: >= sm) -->
+    <div class="hidden sm:block card overflow-x-auto">
       <table class="w-full border-collapse min-w-[700px]">
         <thead>
           <tr class="bg-surfacealt text-[11px] uppercase text-inkmuted">
@@ -130,6 +256,8 @@
         </tbody>
       </table>
     </div>
+
+    </template><!-- /v-else responsive -->
 
     <!-- Modal Akses Foto untuk Absen Masuk / Pulang -->
     <PhotoUploadModal
