@@ -74,18 +74,39 @@
                   <div class="font-mono text-[10px] opacity-80">{{ scheduleOn(emp.id, d).shift_template.start_time.slice(0,5) }}–{{ scheduleOn(emp.id, d).shift_template.end_time.slice(0,5) }}</div>
                 </div>
                 <div v-else class="text-inkfaint text-[11px] text-center py-3">+ Tugaskan</div>
-                <div class="font-mono text-[10px] mt-1.5" v-if="attendanceInfo(emp.id, d)" :class="attendanceInfo(emp.id, d).warn ? 'text-coral font-bold' : 'text-inkmuted'">
-                  <div>{{ attendanceInfo(emp.id, d).text }}</div>
-                  <div v-if="attendanceInfo(emp.id, d).photos.length" class="flex gap-1.5 mt-1.5">
-                    <button v-for="photo in attendanceInfo(emp.id, d).photos" :key="photo.label"
-                            type="button"
-                            class="flex items-center gap-1 rounded border border-line bg-white pr-1 hover:border-teal"
-                            :title="`Lihat foto absen ${photo.label.toLowerCase()}`"
-                            @click.stop="openAttendancePhoto(photo, emp.name, iso(d))">
-                      <img :src="photo.url" :alt="`Bukti absen ${photo.label}`" class="w-8 h-8 rounded-sm object-cover">
-                      <span class="text-[9px] font-semibold">{{ photo.label }}</span>
-                    </button>
+                <div class="text-[10px] mt-1.5 space-y-1" v-if="attendanceInfo(emp.id, d)">
+                  <!-- Info waktu masuk & pulang -->
+                  <div class="font-mono" :class="attendanceInfo(emp.id, d).warn ? 'text-coral font-bold' : 'text-inkmuted'">
+                    {{ attendanceInfo(emp.id, d).text }}
                   </div>
+                  <!-- Tombol foto: setiap foto di baris sendiri -->
+                  <template v-if="attendanceInfo(emp.id, d).photos.length">
+                    <button
+                      v-for="photo in attendanceInfo(emp.id, d).photos"
+                      :key="photo.label"
+                      type="button"
+                      class="w-full flex items-center gap-1.5 rounded-lg border bg-white px-1.5 py-0.5 transition-colors"
+                      :class="photo.label === 'Masuk'
+                        ? 'border-teal/30 hover:border-teal hover:bg-[#CDEAE2]/30'
+                        : 'border-coral/30 hover:border-coral hover:bg-[#F6D9D3]/30'"
+                      :title="`Lihat foto absen ${photo.label.toLowerCase()}`"
+                      @click.stop="openAttendancePhoto(photo, emp.name, iso(d))"
+                    >
+                      <img
+                        :src="photo.url"
+                        :alt="`Bukti absen ${photo.label}`"
+                        class="w-7 h-7 rounded-md object-cover flex-shrink-0 border"
+                        :class="photo.label === 'Masuk' ? 'border-teal/40' : 'border-coral/40'"
+                      >
+                      <div class="flex flex-col items-start min-w-0">
+                        <span
+                          class="text-[9px] font-bold leading-none"
+                          :class="photo.label === 'Masuk' ? 'text-tealink' : 'text-coralink'"
+                        >📷 {{ photo.label }}</span>
+                        <span class="text-[9px] font-mono text-inkfaint leading-tight">{{ photo.time }}</span>
+                      </div>
+                    </button>
+                  </template>
                 </div>
               </div>
             </td>
