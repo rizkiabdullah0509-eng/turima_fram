@@ -522,7 +522,10 @@ class TaskExportService
             $content .= self::pdfText('F1', 8, 68, $y, self::trim($row['employee'], 20));
             $content .= self::pdfText('F1', 8, 188, $y, self::trim($row['title'], 35));
             $content .= self::pdfText('F1', 8, 386, $y, $row['status']);
-            $content .= self::pdfText('F1', 8, 458, $y, self::trim($row['completed_at'], 20));
+            $content .= self::pdfText('F1', 8, 458, $y, self::trim(
+                trim($row['completed_date'].' '.$row['completed_time'], ' -'),
+                20
+            ));
             $y -= 21;
         }
 
