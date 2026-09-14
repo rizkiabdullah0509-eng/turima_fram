@@ -17,3 +17,5 @@ yarn-error.log
 /.vscode
 /waha-sessions
 /.sessions
+*.zip
+*.sql
