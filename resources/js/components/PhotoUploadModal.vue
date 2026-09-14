@@ -535,7 +535,7 @@ function drawWatermark(ctx, width, height) {
   // Judul Watermark
   ctx.fillStyle = '#ffffff';
   ctx.font = `bold ${Math.max(12, Math.round(height * 0.026))}px sans-serif`;
-  ctx.fillText('TURIMA FRAM · VERIFIKASI POSISI KERJA', 16, height - barHeight + Math.round(barHeight * 0.25));
+  ctx.fillText('TURRIMA FRAM · VERIFIKASI POSISI KERJA', 16, height - barHeight + Math.round(barHeight * 0.25));
 
   // Waktu & Koordinat GPS Real (Akurasi Tinggi)
   ctx.fillStyle = '#e2e8f0';

@@ -7,10 +7,10 @@
     <aside class="hidden w-56 shrink-0 flex-col gap-6 bg-branddark p-4 text-white md:flex">
       <div class="flex items-center gap-3 px-1">
         <div class="w-9 h-9 rounded-xl bg-white p-1 shadow-sm flex items-center justify-center shrink-0 border border-white/20">
-          <img src="/images/turima-logo.png" alt="Logo TURIMA FARM" class="w-full h-full object-contain" />
+          <img src="/images/turima-logo.png" alt="Logo TURRIMA FRAM" class="w-full h-full object-contain" />
         </div>
         <div class="min-w-0">
-          <div class="font-display font-bold text-base tracking-tight leading-tight text-white">TURIMA FARM</div>
+          <div class="font-display font-bold text-base tracking-tight leading-tight text-white">TURRIMA FRAM</div>
           <div class="text-[10px] font-medium text-[#6FE3A5] tracking-wider uppercase mt-0.5">Penjadwalan</div>
         </div>
       </div>
@@ -30,10 +30,10 @@
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3 px-1">
             <div class="w-9 h-9 rounded-xl bg-white p-1 shadow-sm flex items-center justify-center shrink-0 border border-white/20">
-              <img src="/images/turima-logo.png" alt="Logo TURIMA FARM" class="w-full h-full object-contain" />
+              <img src="/images/turima-logo.png" alt="Logo TURRIMA FRAM" class="w-full h-full object-contain" />
             </div>
             <div class="min-w-0">
-              <div class="font-display font-bold text-base tracking-tight leading-tight text-white">TURIMA FARM</div>
+              <div class="font-display font-bold text-base tracking-tight leading-tight text-white">TURRIMA FRAM</div>
               <div class="text-[10px] font-medium text-[#6FE3A5] tracking-wider uppercase mt-0.5">Penjadwalan</div>
             </div>
           </div>
@@ -70,7 +70,7 @@
               <span></span><span></span><span></span>
             </span>
           </button>
-          <img src="/images/turima-logo.png" alt="TURIMA FARM" class="w-8 h-8 rounded-lg bg-surfacealt p-0.5 border border-line object-contain md:hidden shrink-0" />
+          <img src="/images/turima-logo.png" alt="TURRIMA FRAM" class="w-8 h-8 rounded-lg bg-surfacealt p-0.5 border border-line object-contain md:hidden shrink-0" />
           <div class="min-w-0">
             <div class="font-display truncate text-lg font-bold">{{ pageTitle }}</div>
             <div class="truncate text-xs text-inkmuted">{{ modeLabel }}</div>

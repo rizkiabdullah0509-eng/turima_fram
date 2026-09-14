@@ -345,8 +345,8 @@ class TaskExportService
             .'<col min="7" max="7" width="20" customWidth="1"/>'
             .'<col min="8" max="9" width="15" customWidth="1"/></cols><sheetData>';
 
-        // Baris 1: Kolom A-B (space kosong untuk logo perusahaan), Kolom C-I (Judul "Absensi Turima Fram" di tengah)
-        $xml .= self::sheetRow(1, ['', '', 'Absensi Turima Fram'], 2, 48);
+        // Baris 1: Kolom A-B (space kosong untuk logo perusahaan), Kolom C-I (Judul "Absensi Turrima Fram" di tengah)
+        $xml .= self::sheetRow(1, ['', '', 'Absensi Turrima Fram'], 2, 48);
         $xml .= self::sheetRow(2, $headings, 1, 22);
 
         foreach ($rows as $index => $row) {
@@ -524,7 +524,7 @@ class TaskExportService
         }
 
         $content .= "0.32 0.40 0.36 rg\n";
-        $content .= self::pdfText('F1', 8, 36, 28, 'TURIMA FRAM - Laporan Daftar Tugas');
+        $content .= self::pdfText('F1', 8, 36, 28, 'TURRIMA FRAM - Laporan Daftar Tugas');
         $content .= self::pdfText('F1', 8, 500, 28, 'Halaman '.$page.' dari '.$pageCount);
 
         return $content;

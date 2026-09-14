@@ -1,7 +1,7 @@
 {
-    "name": "turima/fram",
+    "name": "turrima/fram",
     "type": "project",
-    "description": "TURIMA FRAM - Aplikasi Penjadwalan Kerja (Laravel + Vue 3 + MySQL)",
+    "description": "TURRIMA FRAM - Aplikasi Penjadwalan Kerja (Laravel + Vue 3 + MySQL)",
     "keywords": ["laravel", "scheduling", "attendance"],
     "license": "MIT",
     "require": {

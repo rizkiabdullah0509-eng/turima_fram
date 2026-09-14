@@ -4,9 +4,9 @@
     <div class="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8">
       <div class="flex flex-col items-center justify-center text-center mb-6">
         <div class="w-20 h-20 rounded-2xl bg-surfacealt/80 p-2.5 mb-3 shadow-inner flex items-center justify-center border border-line">
-          <img src="/images/turima-logo.png" alt="Logo TURIMA FARM" class="w-full h-full object-contain" />
+          <img src="/images/turima-logo.png" alt="Logo TURRIMA FRAM" class="w-full h-full object-contain" />
         </div>
-        <div class="font-display font-bold text-xl text-ink tracking-tight">TURIMA FARM</div>
+        <div class="font-display font-bold text-xl text-ink tracking-tight">TURRIMA FRAM</div>
         <p class="text-xs text-inkmuted mt-0.5">Sistem Penjadwalan Kerja</p>
       </div>
 

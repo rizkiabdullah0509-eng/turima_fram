@@ -18,6 +18,6 @@ return [
     ],
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@turimafram.test'),
-        'name' => env('MAIL_FROM_NAME', 'TURIMA FRAM'),
+        'name' => env('MAIL_FROM_NAME', 'TURRIMA FRAM'),
     ],
 ];
