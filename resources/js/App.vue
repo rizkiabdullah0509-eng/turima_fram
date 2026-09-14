@@ -88,14 +88,51 @@
           </button>
           <button class="btn btn-ghost btn-sm" type="button" @click="promptLogout">Keluar</button>
           <div class="relative">
-            <button class="w-9 h-9 rounded-lg border border-line bg-surface relative" @click="bellOpen = !bellOpen">
+            <!-- Backdrop overlay untuk menutup notifikasi saat klik luar di ponsel -->
+            <div v-if="bellOpen" class="fixed inset-0 z-[190] bg-black/20 sm:bg-transparent" @click="bellOpen = false"></div>
+
+            <button
+              class="w-9 h-9 rounded-lg border border-line bg-surface relative z-[191] flex items-center justify-center text-base hover:bg-surfacealt transition"
+              type="button"
+              aria-label="Buka notifikasi"
+              @click="toggleBell"
+            >
               🔔
-              <span v-if="unreadCount > 0" class="absolute -top-1 -right-1 bg-coral text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">{{ unreadCount }}</span>
+              <span v-if="unreadCount > 0" class="absolute -top-1 -right-1 bg-coral text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 shadow-xs animate-pulse">{{ unreadCount }}</span>
             </button>
-            <div v-if="bellOpen" class="absolute right-0 top-11 w-80 max-h-96 overflow-auto card p-2 z-50">
-              <div v-if="notices.length === 0" class="p-5 text-center text-inkfaint text-sm">Belum ada notifikasi.</div>
-              <div v-for="n in notices" :key="n.id" class="p-2.5 rounded-lg hover:bg-surfacealt text-xs">
-                {{ n.message }}
+
+            <!-- Popup/Dropdown Notifikasi Responsif (Ponsel: fixed rata tengah, Desktop: dropdown kanan) -->
+            <div
+              v-if="bellOpen"
+              class="fixed inset-x-3 top-16 z-[200] sm:absolute sm:inset-auto sm:right-0 sm:top-11 sm:w-80 max-h-[80vh] sm:max-h-96 overflow-y-auto card p-3 shadow-2xl border border-line"
+            >
+              <div class="flex items-center justify-between pb-2.5 mb-2 border-b border-line">
+                <div class="font-display font-bold text-sm text-ink flex items-center gap-1.5">
+                  <span>🔔 Notifikasi</span>
+                  <span v-if="unreadCount > 0" class="text-[10px] bg-coral text-white font-bold px-1.5 py-0.5 rounded-full">{{ unreadCount }} Baru</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button v-if="unreadCount > 0" class="text-[11px] text-teal font-semibold hover:underline" type="button" @click="markNoticesRead">Tandai Dibaca</button>
+                  <button class="text-inkmuted hover:text-ink text-sm font-bold sm:hidden px-1" type="button" aria-label="Tutup" @click="bellOpen = false">✕</button>
+                </div>
+              </div>
+
+              <div v-if="notices.length === 0" class="p-6 text-center text-inkfaint text-sm">
+                Belum ada notifikasi.
+              </div>
+
+              <div v-else class="space-y-2">
+                <div
+                  v-for="n in notices"
+                  :key="n.id"
+                  class="p-2.5 rounded-lg text-xs leading-relaxed transition"
+                  :class="n.is_read ? 'bg-surfacealt/50 text-inkmuted' : 'bg-teal/10 border border-teal/20 text-ink font-medium'"
+                >
+                  <div class="whitespace-normal break-words">{{ n.message }}</div>
+                  <div v-if="n.created_at" class="text-[10px] text-inkfaint mt-1 font-mono text-right">
+                    {{ formatNoticeTime(n.created_at) }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -198,6 +235,30 @@ async function loadNotices() {
     const { data } = await api.get('/notices');
     notices.value = data;
   } catch (e) { /* abaikan */ }
+}
+
+async function markNoticesRead() {
+  try {
+    await api.post('/notices/mark-all-read');
+    notices.value = notices.value.map(n => ({ ...n, is_read: true }));
+  } catch (e) { /* abaikan */ }
+}
+
+function toggleBell() {
+  bellOpen.value = !bellOpen.value;
+  if (bellOpen.value && unreadCount.value > 0) {
+    markNoticesRead();
+  }
+}
+
+function formatNoticeTime(dt) {
+  if (!dt) return '';
+  try {
+    const d = new Date(dt);
+    return d.toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '';
+  }
 }
 
 const unreadCount = computed(() => notices.value.filter(n => !n.is_read).length);

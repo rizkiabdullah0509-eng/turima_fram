@@ -1,6 +1,6 @@
 <template>
   <Transition name="notification-toast" appear>
-    <div v-if="activeNotification" class="notification-toast-card fixed right-5 top-5 z-[300] w-[min(26rem,calc(100vw-2.5rem))] rounded-xl border p-4 shadow-2xl"
+    <div v-if="activeNotification" class="notification-toast-card fixed left-3 right-3 sm:left-auto sm:right-5 top-4 sm:top-5 z-[300] sm:w-[26rem] max-w-full rounded-xl border p-4 shadow-2xl"
          :class="activeNotification.type === 'success' ? 'border-[#BFE3CD] bg-white text-tealink' : 'border-[#F2C4BC] bg-white text-coralink'"
          role="alert">
       <div class="flex items-start gap-3">
