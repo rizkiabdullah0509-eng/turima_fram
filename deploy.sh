@@ -3,7 +3,6 @@
 # ============================================================
 # TURIMA FRAM — Script Deploy Otomatis ke VPS Ubuntu 22.04 / 24.04
 # Domain: turima.my.id
-# WhatsApp Bot: WAHA (devlikeapro/waha)
 # Jalankan di VPS: bash deploy.sh
 # ============================================================
 
@@ -24,8 +23,8 @@ echo ""
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║   🚀  TURIMA FRAM — AUTO DEPLOY SCRIPT              ║"
 echo "║   Domain: turima.my.id                              ║"
-echo "║   WhatsApp Bot Gateway: WAHA Docker                  ║"
 echo "╚══════════════════════════════════════════════════════╝"
+
 echo ""
 
 # ── STEP 1: Update sistem ──────────────────────────────────
@@ -121,13 +120,6 @@ SANCTUM_STATEFUL_DOMAINS=turima.my.id
 SESSION_DOMAIN=turima.my.id
 
 VITE_APP_NAME="TURIMA FRAM"
-
-# ---- WAHA (WhatsApp HTTP API) ----
-WAHA_URL=http://127.0.0.1:3005
-WAHA_API_KEY=turima-secret-key-2026
-WAHA_SESSION=default
-WAHA_TIMEOUT_MINUTES=15
-WAHA_WEBHOOK_URL=http://host.docker.internal/api/whatsapp/webhook
 ENVEOF
 
 # Ganti password di .env jika berbeda
@@ -136,7 +128,7 @@ sed -i "s|DB_PASSWORD=TurimaFram@2025!|DB_PASSWORD=$DB_PASS|g" .env
 echo "   ✅ File .env production dikonfigurasi"
 
 # ── STEP 9: Install Dependencies & Build ──────────────────
-echo "📦 [9/14] Install dependencies & build frontend..."
+echo "📦 [9/13] Install dependencies & build frontend..."
 composer install --no-dev --optimize-autoloader --no-interaction
 php artisan key:generate --force
 npm install
@@ -144,7 +136,7 @@ npm run build
 echo "   ✅ Build frontend Vue 3 selesai"
 
 # ── STEP 10: Migrasi Database & Storage ───────────────────
-echo "🗄️  [10/14] Migrasi database..."
+echo "🗄️  [10/13] Migrasi database..."
 php artisan migrate --force
 php artisan storage:link --force
 php artisan config:cache
@@ -153,15 +145,15 @@ php artisan view:cache
 echo "   ✅ Database migrasi selesai"
 
 # ── STEP 11: Set Permission ────────────────────────────────
-echo "🔐 [11/14] Setting permission..."
+echo "🔐 [11/13] Setting permission..."
 sudo chown -R www-data:www-data "$APP_DIR"
 sudo chmod -R 755 "$APP_DIR"
 sudo chmod -R 775 "$APP_DIR/storage"
 sudo chmod -R 775 "$APP_DIR/bootstrap/cache"
 echo "   ✅ Permission diset"
 
-# ── STEP 12: Konfigurasi Nginx dengan Domain & WAHA Proxy ───
-echo "🌐 [12/14] Konfigurasi Nginx untuk turima.my.id..."
+# ── STEP 12: Konfigurasi Nginx dengan Domain ─────────────
+echo "🌐 [12/13] Konfigurasi Nginx untuk turima.my.id..."
 sudo tee /etc/nginx/sites-available/turima_fram > /dev/null << 'NGINXEOF'
 server {
     listen 80;
@@ -173,18 +165,6 @@ server {
 
     index index.php;
     charset utf-8;
-
-    # WAHA Dashboard & API Proxy (/waha/)
-    location /waha/ {
-        proxy_pass http://127.0.0.1:3005/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
 
     # Vue Router SPA — semua route diarahkan ke index.php
     location / {
@@ -218,7 +198,7 @@ sudo systemctl reload nginx
 echo "   ✅ Nginx dikonfigurasi untuk turima.my.id"
 
 # ── STEP 13: Pasang SSL HTTPS Gratis (Certbot) ────────────
-echo "🔒 [13/14] Memasang SSL / HTTPS gratis (Certbot)..."
+echo "🔒 [13/13] Memasang SSL / HTTPS gratis (Certbot)..."
 sudo apt install -y certbot python3-certbot-nginx
 
 CURRENT_IP=$(curl -s ifconfig.me || echo "unknown")
@@ -233,46 +213,14 @@ else
   echo "   Setelah DNS aktif, jalankan: sudo certbot --nginx -d turima.my.id -d www.turima.my.id"
 fi
 
-# ── STEP 14: Install Docker & Jalankan WAHA Gateway ────────
-echo "🤖 [14/14] Menyiapkan WhatsApp Gateway (WAHA Docker)..."
-if ! command -v docker &> /dev/null; then
-  echo "   Mengunduh & menginstall Docker..."
-  curl -fsSL https://get.docker.com -o get-docker.sh
-  sudo sh get-docker.sh
-  sudo usermod -aG docker $USER
-  rm -f get-docker.sh
-  echo "   ✅ Docker terinstall"
-fi
-
-sudo mkdir -p /var/waha-data
-sudo chmod -R 777 /var/waha-data
-
-if [ "$(sudo docker ps -q -f name=waha-turima-fram)" ]; then
-  echo "   ✅ Kontainer waha-turima-fram sudah berjalan."
-elif [ "$(sudo docker ps -aq -f name=waha-turima-fram)" ]; then
-  echo "   Menyalakan kontainer waha-turima-fram..."
-  sudo docker start waha-turima-fram
-  echo "   ✅ WAHA dinyalakan"
-else
-  echo "   Menjalankan kontainer WAHA Turima Fram..."
-  sudo docker compose -f "$APP_DIR/docker-compose.waha.yml" up -d
-  echo "   ✅ Kontainer WAHA berhasil diluncurkan di port 3005"
-fi
-
 # ── SELESAI ────────────────────────────────────────────────
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║   ✅  DEPLOY TURIMA FRAM + WHATSAPP BOT BERHASIL!            ║"
+echo "║   ✅  DEPLOY TURIMA FRAM BERHASIL!                           ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
 echo "║   🌐  Web App     : https://turima.my.id                    ║"
-echo "║   🤖  WAHA QR/Dash: https://turima.my.id/waha/dashboard/    ║"
 echo "║   📁  Folder App  : /var/www/turima_fram                    ║"
 echo "║   🗄️   Database    : turima_fram                             ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
-echo "📱 LANGKAH SELANJUTNYA UNTUK WHATSAPP BOT:"
-echo "   1. Buka browser ke: https://turima.my.id/waha/dashboard/"
-echo "   2. Klik 'Start' pada session default, lalu Scan QR Code menggunakan WhatsApp Bot."
-echo "   3. Masukkan nomor WhatsApp karyawan di menu 'Daftar Karyawan' di web."
-echo "   4. Karyawan siap mengirim pesan ke bot WhatsApp!"
-echo ""
+

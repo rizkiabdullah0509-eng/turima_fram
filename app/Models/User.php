@@ -76,11 +76,6 @@ class User extends Authenticatable
         return $this->hasMany(Task::class);
     }
 
-    public function whatsappSession()
-    {
-        return $this->hasOne(WhatsAppSession::class);
-    }
-
     /**
      * Normalisasi nomor telepon ke format internasional (misal 6281234567890).
      */

@@ -40,12 +40,6 @@ class TaskExportService
         return self::zip($files);
     }
 
-    /** Template .xlsx impor tugas harian. */
-    public static function taskImportTemplate(): string
-    {
-        return TaskImportService::template();
-    }
-
     /** Build the manager's weekly schedule workbook, including attendance times. */
     public static function scheduleExcel(array $rows, string $weekStart): string
     {

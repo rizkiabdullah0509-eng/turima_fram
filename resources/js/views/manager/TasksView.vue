@@ -44,22 +44,6 @@
         </div>
       </div>
 
-      <div v-if="isManager" class="field mb-4 rounded-lg border border-line bg-surfacealt/40 p-3">
-        <label>Impor tugas harian dari Excel</label>
-        <p class="mb-3 text-xs text-inkmuted">Isi template dengan username karyawan, tanggal (YYYY-MM-DD), urutan, dan tugas pada setiap baris. Setelah diimpor, tugas langsung masuk ke akun karyawan.</p>
-        <div class="flex flex-wrap items-center gap-2">
-          <button class="btn btn-ghost btn-sm" type="button" @click="downloadImportTemplate">⬇ Unduh Template Excel</button>
-          <label class="btn btn-ghost btn-sm cursor-pointer">
-            Pilih File Excel
-            <input ref="importInput" class="hidden" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" @change="selectImportFile">
-          </label>
-          <span v-if="importFile" class="max-w-full truncate text-xs text-inkmuted">{{ importFile.name }}</span>
-          <button class="btn btn-primary btn-sm" type="button" :disabled="!importFile || importing" @click="importTasks">
-            {{ importing ? 'Mengimpor...' : 'Impor Tugas' }}
-          </button>
-        </div>
-      </div>
-
       <button class="btn btn-primary" @click="assignChecklist">Tugaskan Daftar Ini</button>
     </div>
 
@@ -81,9 +65,6 @@
             <div>
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="font-bold text-sm">{{ t.title }}</span>
-                <span v-if="t.source === 'whatsapp'" class="inline-flex items-center text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-1.5 py-0.5 rounded border border-emerald-300" title="Diinput melalui WhatsApp Bot">
-                  📱 WA
-                </span>
               </div>
               <div v-if="t.description" class="text-xs text-inkmuted mt-0.5 whitespace-pre-line">{{ t.description }}</div>
               <div v-if="t.status === 'done'" class="text-[11px] text-inkfaint mt-0.5">Selesai {{ formatDateTime(t.completed_at) }}</div>
@@ -136,9 +117,6 @@ const newTitle = ref('');
 const photoModal = ref(null);
 const confirmation = ref(null);
 const auth = useAuthStore();
-const importFile = ref(null);
-const importInput = ref(null);
-const importing = ref(false);
 
 const canExportTasks = computed(() => (
   auth.role === 'manager' || (auth.role === 'employee' && auth.user?.can_manage_schedule)
@@ -178,72 +156,6 @@ async function addTemplate() {
   templates.value.push(tpl);
   checked.value[tpl.id] = true;
   newTitle.value = '';
-}
-
-function selectImportFile(event) {
-  importFile.value = event.target.files?.[0] || null;
-}
-
-async function downloadErrorMessage(payload, fallback) {
-  if (payload instanceof Blob) {
-    try {
-      const body = JSON.parse(await payload.text());
-      return body.message || fallback;
-    } catch {
-      return fallback;
-    }
-  }
-
-  return payload?.message || fallback;
-}
-
-async function downloadImportTemplate() {
-  try {
-    const response = await api.get('/tasks/import-template', { responseType: 'blob' });
-    const contentType = String(response.headers['content-type'] || '').toLowerCase();
-
-    if (!contentType.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) {
-      throw new Error(await downloadErrorMessage(
-        response.data,
-        'Server belum mengirim template Excel yang valid. Muat ulang halaman lalu coba kembali.'
-      ));
-    }
-
-    const url = URL.createObjectURL(response.data);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'template_impor_tugas_harian.xlsx';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  } catch (error) {
-    alert(
-      error.message
-      || await downloadErrorMessage(error.response?.data, 'Gagal mengunduh template Excel.')
-    );
-  }
-}
-
-async function importTasks() {
-  if (!importFile.value) return;
-
-  importing.value = true;
-  const form = new FormData();
-  form.append('file', importFile.value);
-  try {
-    const { data } = await api.post('/tasks/import-excel', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    alert(data.message);
-    importFile.value = null;
-    if (importInput.value) importInput.value.value = '';
-    await loadAll();
-  } catch (error) {
-    alert(error.response?.data?.message || 'Gagal mengimpor tugas dari Excel.');
-  } finally {
-    importing.value = false;
-  }
 }
 
 function requestConfirmation(title, message, confirmLabel, action) {

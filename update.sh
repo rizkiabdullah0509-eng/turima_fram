@@ -27,10 +27,4 @@ sudo chown -R www-data:www-data "$APP_DIR"
 sudo chmod -R 775 "$APP_DIR/storage"
 sudo chmod -R 775 "$APP_DIR/bootstrap/cache"
 
-# Pastikan kontainer WAHA aktif
-if [ "$(sudo docker ps -aq -f name=waha)" ] && [ ! "$(sudo docker ps -q -f name=waha)" ]; then
-  echo "🤖 Memastikan kontainer WAHA berjalan..."
-  sudo docker start waha
-fi
-
-echo "✅ Update selesai! Aplikasi & WhatsApp Bot siap digunakan."
+echo "✅ Update selesai! Aplikasi siap digunakan."

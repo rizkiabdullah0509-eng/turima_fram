@@ -10,9 +10,7 @@ use App\Http\Controllers\Api\ScheduleController;
 use App\Http\Controllers\Api\ShiftTemplateController;
 use App\Http\Controllers\Api\SwapRequestController;
 use App\Http\Controllers\Api\TaskController;
-use App\Http\Controllers\Api\TaskImportController;
 use App\Http\Controllers\Api\TaskTemplateController;
-use App\Http\Controllers\Api\WhatsAppWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -23,13 +21,6 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::post('/login', [AuthController::class, 'login']);
-
-// WhatsApp Bot Webhook & Status (WAHA integration)
-Route::post('/whatsapp/webhook', [WhatsAppWebhookController::class, 'handle']);
-Route::get('/whatsapp/status', [WhatsAppWebhookController::class, 'status']);
-Route::post('/whatsapp/restart', [WhatsAppWebhookController::class, 'restart']);
-Route::get('/whatsapp/qr', [WhatsAppWebhookController::class, 'qr']);
-
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -82,9 +73,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Manajemen karyawan & keputusan — khusus manajer
     Route::middleware('role:manager')->group(function () {
-        Route::get('/tasks/import-template', [TaskImportController::class, 'template']);
-        Route::post('/tasks/import-excel', [TaskImportController::class, 'store']);
-
         Route::get('/attendance/settings', [AttendanceController::class, 'settings']);
         Route::put('/attendance/settings', [AttendanceController::class, 'updateSettings']);
 
