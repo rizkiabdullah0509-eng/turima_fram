@@ -67,7 +67,7 @@ class ScheduleController extends Controller
                 ->addMinutes($lateClockInGraceMinutes);
 
             $schedule->setAttribute('clock_in_deadline', $deadline->toIso8601String());
-            $schedule->setAttribute('clock_in_closed', $serverNow->greaterThan($deadline));
+            $schedule->setAttribute('clock_in_closed', false);
         });
 
         return response()->json([

@@ -52,17 +52,6 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Absen masuk hanya dapat dilakukan pada jadwal shift yang aktif.'], 422);
         }
 
-        $graceMinutes = $this->lateClockInGraceMinutes();
-        $shiftStart = Carbon::parse($data['date'].' '.$schedule->shiftTemplate->start_time);
-        $clockInDeadline = $shiftStart->copy()->addMinutes($graceMinutes);
-
-        if (now()->greaterThan($clockInDeadline)) {
-            return response()->json([
-                'message' => 'Absen masuk sudah ditutup. Shift dimulai pukul '.$shiftStart->format('H:i')
-                    .' dan batas absen adalah '.$clockInDeadline->format('H:i').'.',
-            ], 422);
-        }
-
         $path = $request->file('photo')->store('attendance', 'public');
 
         $attributes = [

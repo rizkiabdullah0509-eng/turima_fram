@@ -49,7 +49,7 @@
     </div>
 
     <!-- Summary KPI Cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" v-if="report?.rows">
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4" v-if="report?.rows">
       <!-- Total Staf -->
       <div class="card p-3.5 sm:p-4 bg-white border border-line flex flex-col justify-between">
         <div class="flex items-center justify-between text-inkmuted mb-1">
@@ -91,6 +91,17 @@
         </div>
         <div class="font-display font-bold text-xl sm:text-2xl font-mono" :class="exceededLimitCount > 0 ? 'text-coral' : 'text-ink'">
           {{ exceededLimitCount }} <span class="text-xs font-sans font-normal text-inkmuted">staf</span>
+        </div>
+      </div>
+
+      <!-- Late Count / Keterlambatan -->
+      <div class="card p-3.5 sm:p-4 bg-white border border-line flex flex-col justify-between col-span-2 sm:col-span-1" :class="totalLateCount > 0 ? 'border-amber-400/40 bg-amber-50/30' : ''">
+        <div class="flex items-center justify-between text-inkmuted mb-1">
+          <span class="text-xs font-semibold">Keterlambatan</span>
+          <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold" :class="totalLateCount > 0 ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600'">🕐</span>
+        </div>
+        <div class="font-display font-bold text-xl sm:text-2xl font-mono" :class="totalLateCount > 0 ? 'text-amber-600' : 'text-ink'">
+          {{ totalLateCount }} <span class="text-xs font-sans font-normal text-inkmuted">kali</span>
         </div>
       </div>
     </div>
@@ -195,7 +206,7 @@
               </div>
 
               <!-- Detailed Grid Numbers -->
-              <div class="grid grid-cols-3 gap-2 pt-1 border-t border-line/50 text-center">
+              <div class="grid grid-cols-4 gap-2 pt-1 border-t border-line/50 text-center">
                 <div class="p-1.5 rounded bg-surfacealt/50">
                   <div class="text-[10px] text-inkmuted font-medium">Terjadwal</div>
                   <div class="font-mono text-xs font-bold text-ink mt-0.5">{{ row.scheduled_hours.toFixed(1) }}j</div>
@@ -207,6 +218,13 @@
                 <div class="p-1.5 rounded" :class="row.scheduled_hours > row.employee.max_hours ? 'bg-red-100/70 text-coral' : 'bg-gray-100 text-inkmuted'">
                   <div class="text-[10px] font-medium">Batas Maks</div>
                   <div class="font-mono text-xs font-bold mt-0.5">{{ row.employee.max_hours }}j</div>
+                </div>
+                <div class="p-1.5 rounded" :class="row.total_late_minutes > 0 ? 'bg-amber-100/70' : 'bg-gray-100'">
+                  <div class="text-[10px] font-medium" :class="row.total_late_minutes > 0 ? 'text-amber-800' : 'text-inkmuted'">Terlambat</div>
+                  <div class="font-mono text-xs font-bold mt-0.5" :class="row.total_late_minutes > 0 ? 'text-amber-600' : 'text-inkmuted'">
+                    {{ row.total_late_minutes || 0 }} <span class="text-[9px] font-normal">mnt</span>
+                    <span v-if="row.late_count > 0" class="text-[9px] font-normal">({{ row.late_count }}x)</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -223,6 +241,7 @@
                 <th class="py-3 px-3 text-right">Jam Terjadwal</th>
                 <th class="py-3 px-3 text-right">Jam Aktual (Absen)</th>
                 <th class="py-3 px-3 text-right">Batas Maksimal</th>
+                <th class="py-3 px-3 text-right">Terlambat</th>
                 <th class="py-3 px-4 text-center">Status Quota</th>
               </tr>
             </thead>
@@ -254,6 +273,13 @@
                   :class="row.scheduled_hours > row.employee.max_hours ? 'text-coral font-bold' : 'text-inkmuted'"
                 >
                   {{ row.employee.max_hours }} jam
+                </td>
+                <td class="py-3 px-3 text-right">
+                  <div v-if="row.total_late_minutes > 0" class="flex flex-col items-end">
+                    <span class="font-mono font-bold text-amber-600">{{ row.total_late_minutes }} menit</span>
+                    <span class="text-[10px] text-amber-500 font-medium">{{ row.late_count }}x terlambat</span>
+                  </div>
+                  <span v-else class="text-[11px] text-inkmuted font-medium">— Tepat waktu</span>
                 </td>
                 <td class="py-3 px-4 text-center">
                   <span
@@ -348,6 +374,10 @@ const totalActualHours = computed(() => {
 const exceededLimitCount = computed(() => {
   if (!report.value?.rows) return 0;
   return report.value.rows.filter(r => (r.scheduled_hours || 0) > (r.employee?.max_hours || 0)).length;
+});
+const totalLateCount = computed(() => {
+  if (!report.value?.rows) return 0;
+  return report.value.rows.reduce((sum, r) => sum + (r.late_count || 0), 0);
 });
 
 const isCurrentWeek = computed(() => {

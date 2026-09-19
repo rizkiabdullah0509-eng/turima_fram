@@ -138,7 +138,7 @@
 
           <!-- Tombol Absen Hari Ini -->
           <div v-if="scheduleOn(d) && iso(d) === today" class="mt-2">
-            <button v-if="!attOn(d)?.clock_in && !isClockInClosed(d)" class="btn btn-teal w-full justify-center" @click="openPhoto('in', d)">📷 Absen Masuk</button>
+            <button v-if="!attOn(d)?.clock_in" class="btn btn-teal w-full justify-center" @click="openPhoto('in', d)">📷 Absen Masuk</button>
             <button v-else-if="!attOn(d)?.clock_out" class="btn btn-coral w-full justify-center" @click="openPhoto('out', d)">📷 Absen Pulang</button>
             <div v-else class="text-center text-[11px] text-inkfaint font-mono mt-1">✓ Absensi Selesai</div>
           </div>
@@ -246,7 +246,7 @@
                 </div>
 
                 <div v-if="scheduleOn(d) && iso(d) === today" class="mt-1.5">
-                  <button v-if="!attOn(d)?.clock_in && !isClockInClosed(d)" class="btn btn-teal btn-sm w-full justify-center" @click="openPhoto('in', d)">📷 Absen Masuk</button>
+                  <button v-if="!attOn(d)?.clock_in" class="btn btn-teal btn-sm w-full justify-center" @click="openPhoto('in', d)">📷 Absen Masuk</button>
                   <button v-else-if="!attOn(d)?.clock_out" class="btn btn-coral btn-sm w-full justify-center" @click="openPhoto('out', d)">📷 Absen Pulang</button>
                   <div v-else class="font-mono text-[10px] text-inkfaint mt-1 text-center">✓ Selesai</div>
                 </div>
