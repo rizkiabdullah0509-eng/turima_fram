@@ -49,7 +49,7 @@
     </div>
 
     <!-- Summary KPI Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4" v-if="report?.rows">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4" v-if="report?.rows">
       <!-- Total Staf -->
       <div class="card p-3.5 sm:p-4 bg-white border border-line flex flex-col justify-between">
         <div class="flex items-center justify-between text-inkmuted mb-1">
@@ -72,17 +72,6 @@
         </div>
       </div>
 
-      <!-- Total Actual -->
-      <div class="card p-3.5 sm:p-4 bg-white border border-line flex flex-col justify-between">
-        <div class="flex items-center justify-between text-inkmuted mb-1">
-          <span class="text-xs font-semibold">Jam Aktual (Absen)</span>
-          <span class="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center text-xs font-bold">⏱️</span>
-        </div>
-        <div class="font-display font-bold text-xl sm:text-2xl text-teal font-mono">
-          {{ totalActualHours.toFixed(1) }} <span class="text-xs font-sans font-normal text-inkmuted">jam</span>
-        </div>
-      </div>
-
       <!-- Exceeded Warning Count -->
       <div class="card p-3.5 sm:p-4 bg-white border border-line flex flex-col justify-between" :class="exceededLimitCount > 0 ? 'border-coral/40 bg-red-50/30' : ''">
         <div class="flex items-center justify-between text-inkmuted mb-1">
@@ -95,7 +84,7 @@
       </div>
 
       <!-- Late Count / Keterlambatan -->
-      <div class="card p-3.5 sm:p-4 bg-white border border-line flex flex-col justify-between col-span-2 sm:col-span-1" :class="totalLateCount > 0 ? 'border-amber-400/40 bg-amber-50/30' : ''">
+      <div class="card p-3.5 sm:p-4 bg-white border border-line flex flex-col justify-between" :class="totalLateCount > 0 ? 'border-amber-400/40 bg-amber-50/30' : ''">
         <div class="flex items-center justify-between text-inkmuted mb-1">
           <span class="text-xs font-semibold">Keterlambatan</span>
           <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold" :class="totalLateCount > 0 ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600'">🕐</span>
@@ -154,10 +143,7 @@
           <div
             v-for="row in report.rows"
             :key="'mobile-' + row.employee.id"
-            class="p-3.5 rounded-xl border transition-all"
-            :class="row.scheduled_hours > row.employee.max_hours
-              ? 'bg-red-50/40 border-coral/40 shadow-xs'
-              : 'bg-surfacealt/30 border-line hover:border-brand/30'"
+            class="p-3.5 rounded-xl border transition-all bg-surfacealt/30 border-line hover:border-brand/30"
           >
             <!-- Card Header: Nama & Posisi -->
             <div class="flex items-center justify-between mb-3">
@@ -170,50 +156,14 @@
                   <div class="text-[11px] text-inkmuted font-medium">{{ row.employee.position || 'Staf' }}</div>
                 </div>
               </div>
-
-              <!-- Overtime / Exceeded Status Badge -->
-              <span
-                v-if="row.scheduled_hours > row.employee.max_hours"
-                class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-coral/15 text-coral border border-coral/30 flex items-center gap-1"
-              >
-                ⚠️ Over
-              </span>
-              <span
-                v-else
-                class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"
-              >
-                ✓ Normal
-              </span>
             </div>
 
-            <!-- Stats Bar & Progress Indicator -->
-            <div class="space-y-2 bg-white p-3 rounded-lg border border-line/80">
-              <!-- Visual Progress Bar -->
-              <div>
-                <div class="flex justify-between text-[11px] font-medium text-inkmuted mb-1">
-                  <span>Realisasi Jam Kerja</span>
-                  <span class="font-mono text-ink font-bold">
-                    {{ row.actual_hours.toFixed(1) }} / {{ row.scheduled_hours.toFixed(1) }} jam
-                  </span>
-                </div>
-                <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden flex">
-                  <div
-                    class="h-full rounded-full transition-all duration-300"
-                    :class="row.actual_hours >= row.scheduled_hours ? 'bg-teal' : 'bg-amber'"
-                    :style="{ width: `${Math.min(100, row.scheduled_hours > 0 ? (row.actual_hours / row.scheduled_hours) * 100 : 0)}%` }"
-                  ></div>
-                </div>
-              </div>
-
-              <!-- Detailed Grid Numbers -->
-              <div class="grid grid-cols-4 gap-2 pt-1 border-t border-line/50 text-center">
+            <!-- Stats Grid -->
+            <div class="bg-white p-3 rounded-lg border border-line/80">
+              <div class="grid grid-cols-3 gap-2 text-center">
                 <div class="p-1.5 rounded bg-surfacealt/50">
                   <div class="text-[10px] text-inkmuted font-medium">Terjadwal</div>
                   <div class="font-mono text-xs font-bold text-ink mt-0.5">{{ row.scheduled_hours.toFixed(1) }}j</div>
-                </div>
-                <div class="p-1.5 rounded bg-teal-50">
-                  <div class="text-[10px] text-teal-800 font-medium">Aktual</div>
-                  <div class="font-mono text-xs font-bold text-teal mt-0.5">{{ row.actual_hours.toFixed(1) }}j</div>
                 </div>
                 <div class="p-1.5 rounded" :class="row.scheduled_hours > row.employee.max_hours ? 'bg-red-100/70 text-coral' : 'bg-gray-100 text-inkmuted'">
                   <div class="text-[10px] font-medium">Batas Maks</div>
@@ -239,10 +189,8 @@
                 <th class="py-3 px-4">Karyawan</th>
                 <th class="py-3 px-3">Posisi</th>
                 <th class="py-3 px-3 text-right">Jam Terjadwal</th>
-                <th class="py-3 px-3 text-right">Jam Aktual (Absen)</th>
                 <th class="py-3 px-3 text-right">Batas Maksimal</th>
                 <th class="py-3 px-3 text-right">Terlambat</th>
-                <th class="py-3 px-4 text-center">Status Quota</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-line bg-white">
@@ -265,9 +213,6 @@
                 <td class="py-3 px-3 text-right font-mono font-bold text-ink">
                   {{ row.scheduled_hours.toFixed(1) }} jam
                 </td>
-                <td class="py-3 px-3 text-right font-mono font-bold text-teal">
-                  {{ row.actual_hours.toFixed(1) }} jam
-                </td>
                 <td
                   class="py-3 px-3 text-right font-mono font-semibold"
                   :class="row.scheduled_hours > row.employee.max_hours ? 'text-coral font-bold' : 'text-inkmuted'"
@@ -280,20 +225,6 @@
                     <span class="text-[10px] text-amber-500 font-medium">{{ row.late_count }}x terlambat</span>
                   </div>
                   <span v-else class="text-[11px] text-inkmuted font-medium">— Tepat waktu</span>
-                </td>
-                <td class="py-3 px-4 text-center">
-                  <span
-                    v-if="row.scheduled_hours > row.employee.max_hours"
-                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-coral/15 text-coral border border-coral/30"
-                  >
-                    ⚠️ Melebihi Batas
-                  </span>
-                  <span
-                    v-else
-                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"
-                  >
-                    ✓ Normal
-                  </span>
                 </td>
               </tr>
             </tbody>
