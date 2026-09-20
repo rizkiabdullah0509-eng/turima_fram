@@ -13,7 +13,7 @@ class SwapRequestController extends Controller
     /** Manajer: semua permintaan tukar shift */
     public function index()
     {
-        return SwapRequest::with(['fromUser', 'toUser', 'shiftTemplate'])->latest()->get();
+        return SwapRequest::with(['fromUser', 'toUser', 'shiftTemplate'])->latest()->limit(100)->get();
     }
 
     /** Karyawan: permintaan tukar shift yang melibatkan dirinya (pengaju atau tujuan) */
@@ -26,6 +26,7 @@ class SwapRequestController extends Controller
                 $q->where('from_user_id', $userId)->orWhere('to_user_id', $userId);
             })
             ->latest()
+            ->limit(50)
             ->get();
     }
 

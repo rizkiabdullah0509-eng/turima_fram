@@ -325,7 +325,11 @@ async function load({ silent = false } = {}) {
 
 onMounted(() => {
   load();
-  refreshTimer = window.setInterval(() => load({ silent: true }), 20000);
+  refreshTimer = window.setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      load({ silent: true });
+    }
+  }, 60000);
 });
 onUnmounted(() => {
   if (refreshTimer) window.clearInterval(refreshTimer);

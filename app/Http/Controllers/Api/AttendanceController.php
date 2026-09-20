@@ -17,7 +17,7 @@ class AttendanceController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $query = Attendance::query()->latest('date');
+        $query = Attendance::query()->latest('date')->latest('id');
 
         if (! $user->canManageTeamSchedule()) {
             $query->where('user_id', $user->id);
@@ -25,7 +25,9 @@ class AttendanceController extends Controller
             $query->where('user_id', $request->query('user_id'));
         }
 
-        return $query->get();
+        $limit = min((int) $request->query('limit', 100), 500);
+
+        return $query->limit($limit)->get();
     }
 
     public function clockIn(Request $request)

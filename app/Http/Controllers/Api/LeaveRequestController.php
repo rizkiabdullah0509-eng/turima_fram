@@ -13,13 +13,13 @@ class LeaveRequestController extends Controller
     /** Manajer: semua permintaan cuti */
     public function index()
     {
-        return LeaveRequest::with('user')->latest()->get();
+        return LeaveRequest::with('user')->latest()->limit(100)->get();
     }
 
     /** Karyawan: permintaan cuti milik sendiri saja */
     public function mine(Request $request)
     {
-        return LeaveRequest::where('user_id', $request->user()->id)->latest()->get();
+        return LeaveRequest::where('user_id', $request->user()->id)->latest()->limit(50)->get();
     }
 
     public function store(Request $request)

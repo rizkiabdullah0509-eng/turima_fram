@@ -78,7 +78,11 @@ function formatDate(date) {
 
 onMounted(() => {
   load();
-  refreshTimer = window.setInterval(() => load({ silent: true }), 30000);
+  refreshTimer = window.setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      load({ silent: true });
+    }
+  }, 60000);
 });
 
 onUnmounted(() => {
